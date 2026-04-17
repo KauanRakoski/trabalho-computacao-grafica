@@ -228,6 +228,9 @@ bool g_UsePerspectiveProjection = true;
 // Variável que controla se o texto informativo será mostrado na tela.
 bool g_ShowInfoText = true;
 
+// Variável que controla se a câmera está em modo primeira pessoa.
+bool g_CameraFirstPerson = false;
+
 // Variáveis que definem um programa de GPU (shaders). Veja função LoadShadersFromFiles().
 GLuint g_GpuProgramID = 0;
 GLint g_model_uniform;
@@ -485,7 +488,14 @@ int main(int argc, char* argv[])
 
         glm::vec3 posc = crash.getPosition();
         glm::vec3 forwardc = crash.getForwardVector();
-        camera.UpdateFollow(posc, forwardc);
+        if (g_CameraFirstPerson)
+        {
+            camera.UpdateFirstPerson(posc, forwardc);
+        }
+        else
+        {
+            camera.UpdateFollow(posc, forwardc);
+        }
 
         glm::mat4 view = camera.GetViewMatrix();
 
@@ -1363,6 +1373,18 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mod)
     if (key == GLFW_KEY_H && action == GLFW_PRESS)
     {
         g_ShowInfoText = !g_ShowInfoText;
+    }
+
+    // Se o usuário apertar a tecla 1, entramos no modo first-person.
+    if (key == GLFW_KEY_1 && action == GLFW_PRESS)
+    {
+        g_CameraFirstPerson = true;
+    }
+
+    // Se o usuário apertar a tecla 2, retornamos ao modo de câmera de perseguição.
+    if (key == GLFW_KEY_2 && action == GLFW_PRESS)
+    {
+        g_CameraFirstPerson = false;
     }
 
     // Se o usuário apertar a tecla R, recarregamos os shaders dos arquivos "shader_fragment.glsl" e "shader_vertex.glsl".
