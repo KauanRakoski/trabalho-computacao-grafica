@@ -25,6 +25,8 @@ uniform mat4 projection;
 #define CRASH  3
 #define TRIKEE 4
 
+#define DEBUG_AABB 99
+
 uniform int object_id;
 
 // Parâmetros da axis-aligned bounding box (AABB) do modelo
@@ -149,6 +151,10 @@ void main()
         U = texcoords.x;
         V = texcoords.y;
         Kd0 = texture(TextureImage3, vec2(U,V)).rgb;
+    }
+    else if ( object_id == DEBUG_AABB ) {
+        // caixas tem linhas verdes
+        Kd0 = vec3(0.0, 1.0, 0.0);
     }
 
     // Equação de Iluminação

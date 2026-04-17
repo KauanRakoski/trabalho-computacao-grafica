@@ -51,6 +51,7 @@
 
 #include "Entity.h"
 #include "Camera.h"
+#include "Physics.h"
 
 float g_LastFrameTime = 0.0f;
 float g_DeltaTime = 0.0f;
@@ -165,6 +166,7 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mode
 void MouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
 void CursorPosCallback(GLFWwindow* window, double xpos, double ypos);
 void ScrollCallback(GLFWwindow* window, double xoffset, double yoffset);
+void DrawDebugAABB(AABB bbox);
 
 // Definimos uma estrutura que armazenará dados necessários para renderizar
 // cada objeto da cena virtual.
@@ -366,7 +368,7 @@ int main(int argc, char* argv[])
     pista.setScale(2.0f, 1.0f, 2.0f);
 
     Entity crash(std::vector<std::string>{"mesh_1", "mesh_1.001"}, std::vector<int>{CRASH, TRIKEE});    
-    crash.setPosition(0.0f, -1.0f, 0.0f);
+    crash.setPosition(0.0f, 5.0f, 0.0f);
     crash.setScale(0.0001f, 0.0001f, 0.0001f);
 
     // ============================
@@ -374,10 +376,75 @@ int main(int argc, char* argv[])
     // ============================
     Camera camera;
 
+    // ============================
+    //  CONSTANTES GRAVITACIONAIS -- DEFINIR EM PHYSICS DEPOIS
+    // ============================
+    float crash_velocity_y = 0.0f;
+    float gravity = 3.0f;
+
+    // ============================
+    //  VARIÁVEIS DE DESENVOLVIMENTO
+    // ============================
+    bool debug = true;
+
     // Ficamos em um loop infinito, renderizando, até que o usuário feche a janela
     glActiveTexture(GL_TEXTURE0);
     while (!glfwWindowShouldClose(window))
     {
+        // Lidamos com animação básica de movimento baseada em inputs
+        UpdateDeltaTime();
+
+        glm::vec3 oldPosition = crash.getPosition();
+
+        crash_velocity_y -= gravity * g_DeltaTime; 
+        
+        glm::vec3 pos = crash.getPosition();
+        pos.y += crash_velocity_y * g_DeltaTime;
+        crash.setPosition(pos.x, pos.y, pos.z);
+
+        float speed = 2.0f;
+        float rot_speed = 1.5f;
+
+        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
+            glm::vec3 rot = crash.getLocalRotation();
+            rot.y += rot_speed * g_DeltaTime;
+            crash.setLocalRotation(rot.x, rot.y, rot.z);
+        }
+        if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
+            glm::vec3 rot = crash.getLocalRotation();
+            rot.y -= rot_speed * g_DeltaTime;
+            crash.setLocalRotation(rot.x, rot.y, rot.z);
+        }
+
+        if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
+            glm::vec3 pos = crash.getPosition();
+            glm::vec3 forward = crash.getForwardVector();
+            pos += forward * speed * g_DeltaTime;
+            crash.setPosition(pos.x, pos.y, pos.z);
+        }
+        if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
+            glm::vec3 pos = crash.getPosition();
+            glm::vec3 forward = crash.getForwardVector();
+            pos -= forward * speed * g_DeltaTime;
+            crash.setPosition(pos.x, pos.y, pos.z);
+        }
+
+        // Definimos AABB na mão, melhorar depois
+        glm::vec3 crashPos = crash.getPosition();
+        AABB crashBox;
+        crashBox.min = crashPos - glm::vec3(0.1f, 0.0f, 0.1f);
+        crashBox.max = crashPos + glm::vec3(0.1f, 0.1f, 0.1f);
+        
+        AABB planoBox;
+        planoBox.min = glm::vec3(-2.0f, -2.0f, -2.0f); 
+        planoBox.max = glm::vec3(2.0f, -0.5f,  2.0f);
+
+        if ( CheckCollisionAABB(crashBox, planoBox) )
+        {
+            crash_velocity_y = 0.0f;
+            crash.setPosition(crashPos.x, -1.0f, crashPos.z);
+        }
+
         // Aqui executamos as operações de renderização
 
         // Definimos a cor do "fundo" do framebuffer como branco.  Tal cor é
@@ -416,9 +483,9 @@ int main(int argc, char* argv[])
         // // definir o sistema de coordenadas da câmera.  Veja slides 2-14, 184-190 e 236-242 do documento Aula_08_Sistemas_de_Coordenadas.pdf.
         // glm::mat4 view = Matrix_Camera_View(camera_position_c, camera_view_vector, camera_up_vector);
 
-        glm::vec3 pos = crash.getPosition();
-        glm::vec3 forward = crash.getForwardVector();
-        camera.UpdateFollow(pos, forward);
+        glm::vec3 posc = crash.getPosition();
+        glm::vec3 forwardc = crash.getForwardVector();
+        camera.UpdateFollow(posc, forwardc);
 
         glm::mat4 view = camera.GetViewMatrix();
 
@@ -459,62 +526,19 @@ int main(int argc, char* argv[])
         glUniformMatrix4fv(g_view_uniform       , 1 , GL_FALSE , glm::value_ptr(view));
         glUniformMatrix4fv(g_projection_uniform , 1 , GL_FALSE , glm::value_ptr(projection));
 
-        UpdateDeltaTime();
+        
 
-        float speed = 2.0f;
-        float rot_speed = 1.5f;
-
-        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
-            glm::vec3 rot = crash.getLocalRotation();
-            rot.y += rot_speed * g_DeltaTime;
-            crash.setLocalRotation(rot.x, rot.y, rot.z);
-        }
-        if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
-            glm::vec3 rot = crash.getLocalRotation();
-            rot.y -= rot_speed * g_DeltaTime;
-            crash.setLocalRotation(rot.x, rot.y, rot.z);
-        }
-
-        if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
-            glm::vec3 pos = crash.getPosition();
-            glm::vec3 forward = crash.getForwardVector();
-            pos += forward * speed * g_DeltaTime;
-            crash.setPosition(pos.x, pos.y, pos.z);
-        }
-        if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
-            glm::vec3 pos = crash.getPosition();
-            glm::vec3 forward = crash.getForwardVector();
-            pos -= forward * speed * g_DeltaTime;
-            crash.setPosition(pos.x, pos.y, pos.z);
-        }
-
+        // Desenhamos a pista e o crash
         pista.draw();
         crash.draw();
-        // Desenhamos o modelo da esfera
-        // model = Matrix_Translate(-1.0f,0.0f,0.0f)
-        //       * Matrix_Rotate_Z(0.6f)
-        //       * Matrix_Rotate_X(0.2f)
-        //       * Matrix_Rotate_Y(g_AngleY + (float)glfwGetTime() * 0.1f);
-        // glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-        // glUniform1i(g_object_id_uniform, SPHERE);
-        // DrawVirtualObject("the_sphere");
 
-        // // Desenhamos o modelo do coelho
-        // model = Matrix_Translate(1.0f,0.0f,0.0f)
-        //       * Matrix_Rotate_X(g_AngleX + (float)glfwGetTime() * 0.1f);
-        // glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-        // glUniform1i(g_object_id_uniform, BUNNY);
-        // DrawVirtualObject("the_bunny");
-
-        // // Desenhamos o plano do chão
-        // model = Matrix_Translate(0.0f,-1.1f,0.0f);
-        // glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-        // glUniform1i(g_object_id_uniform, PLANE);
-        // DrawVirtualObject("the_plane");
-
+        if (debug == true){
+            DrawDebugAABB(crashBox);
+            DrawDebugAABB(planoBox);
+        }
         
 
-        
+
 
         // Imprimimos na tela os ângulos de Euler que controlam a rotação do
         // terceiro cubo.
@@ -1651,6 +1675,62 @@ void PrintObjModelInfo(ObjModel* model)
     }
     printf("\n");
   }
+}
+
+// =================
+// AUXILIARES
+// =================
+// feita por IA
+void DrawDebugAABB(AABB bbox)
+{
+    static GLuint VAO = 0;
+    static GLuint VBO = 0;
+    static GLuint EBO = 0;
+
+    if (VAO == 0) {
+        glGenVertexArrays(1, &VAO);
+        glGenBuffers(1, &VBO);
+        glGenBuffers(1, &EBO);
+
+        GLuint indices[] = {
+            0, 1, 1, 2, 2, 3, 3, 0,
+            4, 5, 5, 6, 6, 7, 7, 4,
+            0, 4, 1, 5, 2, 6, 3, 7
+        };
+
+        glBindVertexArray(VAO);
+        
+        glBindBuffer(GL_ARRAY_BUFFER, VBO);
+        glBufferData(GL_ARRAY_BUFFER, 8 * 4 * sizeof(float), NULL, GL_DYNAMIC_DRAW);
+        glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+        glEnableVertexAttribArray(0);
+
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+
+        glBindVertexArray(0);
+    }
+
+    float vertices[] = {
+        bbox.min.x, bbox.min.y, bbox.min.z, 1.0f,
+        bbox.max.x, bbox.min.y, bbox.min.z, 1.0f,
+        bbox.max.x, bbox.max.y, bbox.min.z, 1.0f,
+        bbox.min.x, bbox.max.y, bbox.min.z, 1.0f,
+        bbox.min.x, bbox.min.y, bbox.max.z, 1.0f,
+        bbox.max.x, bbox.min.y, bbox.max.z, 1.0f,
+        bbox.max.x, bbox.max.y, bbox.max.z, 1.0f,
+        bbox.min.x, bbox.max.y, bbox.max.z, 1.0f
+    };
+
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
+
+    glBindVertexArray(VAO);
+    glUniformMatrix4fv(g_model_uniform, 1, GL_FALSE, glm::value_ptr(Matrix_Identity()));
+    glUniform1i(g_object_id_uniform, 99); 
+
+    glDrawElements(GL_LINES, 24, GL_UNSIGNED_INT, 0);
+    glBindVertexArray(0);
 }
 
 // set makeprg=cd\ ..\ &&\ make\ run\ >/dev/null

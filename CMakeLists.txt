@@ -14,6 +14,7 @@ set(SOURCES
   src/glad.c
   src/Entity.cpp
   src/Camera.cpp
+  src/Physics.cpp
 )
 
 cmake_minimum_required(VERSION 3.5.0)
