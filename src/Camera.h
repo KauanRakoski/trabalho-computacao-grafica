@@ -17,6 +17,9 @@ public:
     // Recebe a posição do alvo e o vetor direcional (para onde o alvo está olhando)
     void UpdateFollow(glm::vec3 targetPosition, glm::vec3 targetForward);
 
+    // Atualiza a câmera para o modo primeira pessoa.
+    void UpdateFirstPerson(glm::vec3 targetPosition, glm::vec3 targetForward);
+
     // Retorna a Matriz View para mandarmos para a GPU
     glm::mat4 GetViewMatrix();
 };
