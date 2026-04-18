@@ -22,8 +22,11 @@ uniform mat4 projection;
 #define SPHERE 0
 #define BUNNY  1
 #define PLANE  2
+
 #define CRASH  3
 #define TRIKEE 4
+#define CORTEX 5
+#define DEADINATOR 6
 
 #define DEBUG_AABB 99
 
@@ -38,6 +41,9 @@ uniform sampler2D TextureImage0;
 uniform sampler2D TextureImage1;
 uniform sampler2D TextureImage2;
 uniform sampler2D TextureImage3;
+uniform sampler2D TextureImage4;
+uniform sampler2D TextureImage5;
+
 
 // O valor de saída ("out") de um Fragment Shader é a cor final do fragmento.
 out vec4 color;
@@ -151,6 +157,18 @@ void main()
         U = texcoords.x;
         V = texcoords.y;
         Kd0 = texture(TextureImage3, vec2(U,V)).rgb;
+    }
+    else if ( object_id == CORTEX )
+    {
+        U = texcoords.x;
+        V = texcoords.y;
+        Kd0 = texture(TextureImage4, vec2(U,V)).rgb;
+    }
+    else if ( object_id == DEADINATOR )
+    {
+        U = texcoords.x;
+        V = texcoords.y;
+        Kd0 = texture(TextureImage5, vec2(U,V)).rgb;
     }
     else if ( object_id == DEBUG_AABB ) {
         // caixas tem linhas verdes

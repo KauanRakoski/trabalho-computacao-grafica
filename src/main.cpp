@@ -320,6 +320,9 @@ int main(int argc, char* argv[])
     LoadTextureImage("../../data/crash.png"); // TextureImage2
     LoadTextureImage("../../data/trikee.png"); // TextureImage3
 
+    LoadTextureImage("../../data/cortex.png"); // TextureImage4
+    LoadTextureImage("../../data/deadinator.png"); // TextureImage5
+
     // Construímos a representação de objetos geométricos através de malhas de triângulos
     ObjModel spheremodel("../../data/sphere.obj");
     ComputeNormals(&spheremodel);
@@ -336,6 +339,10 @@ int main(int argc, char* argv[])
     ObjModel crashModel("../../data/crash_bandicoot.obj");
     ComputeNormals(&crashModel);
     BuildTrianglesAndAddToVirtualScene(&crashModel);
+
+    ObjModel cortexModel("../../data/Cortex.obj");
+    ComputeNormals(&cortexModel);
+    BuildTrianglesAndAddToVirtualScene(&cortexModel);
 
     if ( argc > 1 )
     {
@@ -362,15 +369,24 @@ int main(int argc, char* argv[])
     #define PLANE  2
     #define CRASH  3
     #define TRIKEE 4
+    #define CORTEX 5
+    #define DEADINATOR 6
     
     Entity pista("the_plane", PLANE);
     pista.setPosition(0.0f, -1.0f, 0.0f);
     pista.setScale(2.0f, 1.0f, 2.0f);
 
+    AABB planoBox;
+    planoBox.min = glm::vec3(-2.0f, -2.0f, -2.0f); 
+    planoBox.max = glm::vec3( 2.0f, -0.5f,  2.0f);
+
     Entity crash(std::vector<std::string>{"mesh_1", "mesh_1.001"}, std::vector<int>{CRASH, TRIKEE});    
     crash.setPosition(0.0f, 5.0f, 0.0f);
     crash.setScale(0.0001f, 0.0001f, 0.0001f);
 
+    Entity cortex(std::vector<std::string>{"mesh_2", "mesh_1001"}, std::vector<int>{CORTEX, DEADINATOR});
+    cortex.setPosition(1, 1.0f, 1);
+    cortex.setScale(0.000001f, 0.000001f, 0.000001f);
     // ============================
     //     CRIAÇÃO DA CÂMERA
     // ============================
@@ -380,7 +396,13 @@ int main(int argc, char* argv[])
     //  CONSTANTES GRAVITACIONAIS -- DEFINIR EM PHYSICS DEPOIS
     // ============================
     float crash_velocity_y = 0.0f;
+    float cortex_velocity_y = 0.0f;
     float gravity = 3.0f;
+
+    float friction = 5.0f; // atrito do solo
+
+    glm::vec3 crash_knockback = glm::vec3(0.0f, 0.0f, 0.0f);
+    glm::vec3 cortex_knockback = glm::vec3(0.0f, 0.0f, 0.0f);
 
     // ============================
     //  VARIÁVEIS DE DESENVOLVIMENTO
@@ -394,13 +416,8 @@ int main(int argc, char* argv[])
         // Lidamos com animação básica de movimento baseada em inputs
         UpdateDeltaTime();
 
-        glm::vec3 oldPosition = crash.getPosition();
-
-        crash_velocity_y -= gravity * g_DeltaTime; 
-        
-        glm::vec3 pos = crash.getPosition();
-        pos.y += crash_velocity_y * g_DeltaTime;
-        crash.setPosition(pos.x, pos.y, pos.z);
+        crash.UpdatePhysics(g_DeltaTime, gravity, friction);
+        cortex.UpdatePhysics(g_DeltaTime, gravity, friction);
 
         float speed = 2.0f;
         float rot_speed = 1.5f;
@@ -429,21 +446,35 @@ int main(int argc, char* argv[])
             crash.setPosition(pos.x, pos.y, pos.z);
         }
 
-        // Definimos AABB na mão, melhorar depois
-        glm::vec3 crashPos = crash.getPosition();
-        AABB crashBox;
-        crashBox.min = crashPos - glm::vec3(0.1f, 0.0f, 0.1f);
-        crashBox.max = crashPos + glm::vec3(0.1f, 0.1f, 0.1f);
+        // Aqui interpolamos a posição do cortex
+        static float cortex_t = 0.0f;
+        float cortex_speed = 0.2f; 
         
-        AABB planoBox;
-        planoBox.min = glm::vec3(-2.0f, -2.0f, -2.0f); 
-        planoBox.max = glm::vec3(2.0f, -0.5f,  2.0f);
-
-        if ( CheckCollisionAABB(crashBox, planoBox) )
-        {
-            crash_velocity_y = 0.0f;
-            crash.setPosition(crashPos.x, -1.0f, crashPos.z);
+        cortex_t += cortex_speed * g_DeltaTime;
+        if (cortex_t > 1.0f) {
+            cortex_t -= 1.0f;
         }
+
+        glm::vec3 p0(-2.0f, -1.0f, -1.0f); 
+        glm::vec3 p1( 2.0f, -1.0f, -2.0f); 
+        glm::vec3 p2( 2.0f, -1.0f,  2.0f); 
+        glm::vec3 p3(-2.0f, -1.0f,  2.0f); 
+
+        glm::vec3 newCortexPos = CalculateBezierPoint(cortex_t, p0, p1, p2, p3);
+        glm::vec3 cortexTangent = CalculateBezierTangent(cortex_t, p0, p1, p2, p3);
+
+        float cortexYaw = atan2(cortexTangent.x, cortexTangent.z);
+
+        newCortexPos.x += cortex.knockback.x;
+        newCortexPos.z += cortex.knockback.z;
+        newCortexPos.y = cortex.getPosition().y; 
+
+        cortex.setPosition(newCortexPos.x, newCortexPos.y, newCortexPos.z);
+        cortex.setLocalRotation(0.0f, cortexYaw + 3.14f, 0.0f);
+
+        ResolveFloorCollision(crash, planoBox, -1.0f);
+        ResolveFloorCollision(cortex, planoBox, -1.0f);
+        ResolveKartCollision(crash, cortex, 5.0f);
 
         // Aqui executamos as operações de renderização
 
@@ -529,16 +560,15 @@ int main(int argc, char* argv[])
         
 
         // Desenhamos a pista e o crash
+        cortex.draw();
         pista.draw();
         crash.draw();
 
-        if (debug == true){
-            DrawDebugAABB(crashBox);
+        if (debug){
+            DrawDebugAABB(crash.getAABB(0.1f));
             DrawDebugAABB(planoBox);
+            DrawDebugAABB(cortex.getAABB(0.1f));
         }
-        
-
-
 
         // Imprimimos na tela os ângulos de Euler que controlam a rotação do
         // terceiro cubo.
@@ -695,6 +725,8 @@ void LoadShadersFromFiles()
     glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage1"), 1);
     glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage2"), 2);
     glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage3"), 3);
+    glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage4"), 4);
+    glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage5"), 5);
     
     glUseProgram(0);
 }

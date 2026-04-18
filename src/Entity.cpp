@@ -1,4 +1,5 @@
 #include "Entity.h"
+#include "Physics.h"
 #include <glad/glad.h>
 
 extern void DrawVirtualObject(const char* object_name);
@@ -100,4 +101,28 @@ void Entity::draw(glm::mat4 parent_transform) {
         glUniform1i(g_object_id_uniform, shader_ids[i]);
         DrawVirtualObject(model_names[i].c_str());
     }
+}
+
+void Entity::UpdatePhysics(float deltaTime, float gravity, float friction) {
+    velocity_y -= gravity * deltaTime;
+    
+    knockback -= knockback * friction * deltaTime;
+    if (glm::length(knockback) < 0.1f) {
+        knockback = glm::vec3(0.0f);
+    }
+    
+    glm::vec3 pos = getPosition();
+    pos.y += velocity_y * deltaTime;
+    pos.x += knockback.x * deltaTime;
+    pos.z += knockback.z * deltaTime;
+    
+    setPosition(pos.x, pos.y, pos.z);
+}
+
+AABB Entity::getAABB(float size) {
+    glm::vec3 pos = getPosition();
+    AABB box;
+    box.min = pos - glm::vec3(size, 0.0f, size);
+    box.max = pos + glm::vec3(size, size * 2.0f, size);
+    return box;
 }
