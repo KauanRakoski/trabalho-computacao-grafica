@@ -39,6 +39,7 @@
 #include <glm/mat4x4.hpp>
 #include <glm/vec4.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <glm/gtc/matrix_inverse.hpp>
 
 // Headers da biblioteca para carregar modelos obj
 #include <tiny_obj_loader.h>
@@ -121,6 +122,23 @@ void UpdateDeltaTime()
     float currentFrameTime = (float)glfwGetTime();
     g_DeltaTime = currentFrameTime - g_LastFrameTime;
     g_LastFrameTime = currentFrameTime;
+}
+
+bool GetHeightOnInclinedPlane(Entity& plane, const glm::vec3& worldPos, float& outHeight)
+{
+    glm::mat4 model = plane.getModelMatrix();
+    glm::mat4 invModel = glm::inverse(model);
+    glm::vec4 localPos = invModel * glm::vec4(worldPos, 1.0f);
+
+    if (localPos.x >= -1.0f && localPos.x <= 1.0f &&
+        localPos.z >= -1.0f && localPos.z <= 1.0f)
+    {
+        glm::vec4 worldSurface = model * glm::vec4(localPos.x, 0.0f, localPos.z, 1.0f);
+        outHeight = worldSurface.y;
+        return true;
+    }
+
+    return false;
 }
 
 // Declaração de funções utilizadas para pilha de matrizes de modelagem.
@@ -318,7 +336,7 @@ int main(int argc, char* argv[])
 
     // Carregamos duas imagens para serem utilizadas como textura
     LoadTextureImage("../../data/red_brick_diff_1k.jpg");      // TextureImage0
-    LoadTextureImage("../../data/rocky_terrain_02_diff_1k.jpg"); // TextureImage1
+    LoadTextureImage("../../data/red_brick_diff_1k.jpg"); // TextureImage1
 
     LoadTextureImage("../../data/crash.png"); // TextureImage2
     LoadTextureImage("../../data/trikee.png"); // TextureImage3
@@ -375,6 +393,11 @@ int main(int argc, char* argv[])
     Entity pista("the_plane", PLANE);
     pista.setPosition(0.0f, -1.0f, 0.0f);
     pista.setScale(5.0f, 1.0f, 5.0f);
+
+    Entity pista2("the_plane", PLANE);
+    pista2.setPosition(6.0f, -1.0f, 0.0f);
+    pista2.setScale(5.0f, 1.0f, 5.0f);
+    pista2.setLocalRotation(glm::radians(45.0f), 0.0f, 0.0f);
 
     Entity crash(std::vector<std::string>{"mesh_1", "mesh_1.001"}, std::vector<int>{CRASH, TRIKEE});    
     crash.setPosition(0.0f, 5.0f, 0.0f);
@@ -453,10 +476,30 @@ int main(int argc, char* argv[])
         planoBox.min = glm::vec3(-10.0f, -2.0f, -10.0f); 
         planoBox.max = glm::vec3(10.0f, -0.5f,  10.0f);
 
+        AABB boxBox;
+        boxBox.min = box.getPosition() - glm::vec3(0.15f, 0.15f, 0.15f);
+        boxBox.max = box.getPosition() + glm::vec3(0.15f, 0.15f, 0.15f);
+
+        AABB pista2Box = TransformAABB(glm::vec3(-1.0f, -0.1f, -1.0f), glm::vec3(1.0f, 0.1f, 1.0f), pista2.getModelMatrix());
+
         if ( CheckCollisionAABB(crashBox, planoBox) )
         {
             crash_velocity_y = 0.0f;
             crash.setPosition(crashPos.x, -1.0f, crashPos.z);
+        } 
+        if ( CheckCollisionAABB(crashBox, boxBox) )
+        {
+            speed = 0.0f;
+            crash.setPosition(crashPos.x, -0.5f, crashPos.z);
+        } 
+        if ( CheckCollisionAABB(crashBox, pista2Box) )
+        {
+            float surfaceY;
+            if ( GetHeightOnInclinedPlane(pista2, crashPos, surfaceY) && crashPos.y <= surfaceY + 0.25f )
+            {
+                crash_velocity_y = 0.0f;
+                crash.setPosition(crashPos.x, surfaceY, crashPos.z);
+            }
         }
 
         // Aqui executamos as operações de renderização
@@ -551,12 +594,14 @@ int main(int argc, char* argv[])
 
         // Desenhamos a pista e o crash
         pista.draw();
+        pista2.draw();
         crash.draw();
         box.draw();
 
         if (debug == true){
             DrawDebugAABB(crashBox);
             DrawDebugAABB(planoBox);
+            DrawDebugAABB(pista2Box);
         }
         
 
