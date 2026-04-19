@@ -322,6 +322,7 @@ int main(int argc, char* argv[])
 
     LoadTextureImage("../../data/crash.png"); // TextureImage2
     LoadTextureImage("../../data/trikee.png"); // TextureImage3
+    LoadTextureImage("../../data/box.jpg"); // TextureImage4
 
     // Construímos a representação de objetos geométricos através de malhas de triângulos
     ObjModel spheremodel("../../data/sphere.obj");
@@ -339,6 +340,10 @@ int main(int argc, char* argv[])
     ObjModel crashModel("../../data/crash_bandicoot.obj");
     ComputeNormals(&crashModel);
     BuildTrianglesAndAddToVirtualScene(&crashModel);
+
+    ObjModel boxmodel("../../data/box.obj");
+    ComputeNormals(&boxmodel);
+    BuildTrianglesAndAddToVirtualScene(&boxmodel);
 
     if ( argc > 1 )
     {
@@ -365,14 +370,20 @@ int main(int argc, char* argv[])
     #define PLANE  2
     #define CRASH  3
     #define TRIKEE 4
+    #define BOX 5
     
     Entity pista("the_plane", PLANE);
     pista.setPosition(0.0f, -1.0f, 0.0f);
-    pista.setScale(2.0f, 1.0f, 2.0f);
+    pista.setScale(5.0f, 1.0f, 5.0f);
 
     Entity crash(std::vector<std::string>{"mesh_1", "mesh_1.001"}, std::vector<int>{CRASH, TRIKEE});    
     crash.setPosition(0.0f, 5.0f, 0.0f);
     crash.setScale(0.0001f, 0.0001f, 0.0001f);
+
+    Entity box("the_box", BOX);
+    box.setPosition(2.0f, -0.5f, 0.0f);
+    box.setScale(0.3f, 0.3f, 0.3f);
+
 
     // ============================
     //     CRIAÇÃO DA CÂMERA
@@ -405,7 +416,7 @@ int main(int argc, char* argv[])
         pos.y += crash_velocity_y * g_DeltaTime;
         crash.setPosition(pos.x, pos.y, pos.z);
 
-        float speed = 2.0f;
+        float speed = 5.0f;
         float rot_speed = 1.5f;
 
         if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
@@ -439,8 +450,8 @@ int main(int argc, char* argv[])
         crashBox.max = crashPos + glm::vec3(0.1f, 0.1f, 0.1f);
         
         AABB planoBox;
-        planoBox.min = glm::vec3(-2.0f, -2.0f, -2.0f); 
-        planoBox.max = glm::vec3(2.0f, -0.5f,  2.0f);
+        planoBox.min = glm::vec3(-10.0f, -2.0f, -10.0f); 
+        planoBox.max = glm::vec3(10.0f, -0.5f,  10.0f);
 
         if ( CheckCollisionAABB(crashBox, planoBox) )
         {
@@ -505,7 +516,7 @@ int main(int argc, char* argv[])
         // Note que, no sistema de coordenadas da câmera, os planos near e far
         // estão no sentido negativo! Veja slides 176-204 do documento Aula_09_Projecoes.pdf.
         float nearplane = -0.1f;  // Posição do "near plane"
-        float farplane  = -10.0f; // Posição do "far plane"
+        float farplane  = -100.0f; // Posição do "far plane"
 
         if (g_UsePerspectiveProjection)
         {
@@ -541,6 +552,7 @@ int main(int argc, char* argv[])
         // Desenhamos a pista e o crash
         pista.draw();
         crash.draw();
+        box.draw();
 
         if (debug == true){
             DrawDebugAABB(crashBox);
@@ -705,6 +717,7 @@ void LoadShadersFromFiles()
     glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage1"), 1);
     glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage2"), 2);
     glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage3"), 3);
+    glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage4"), 4);
     
     glUseProgram(0);
 }
