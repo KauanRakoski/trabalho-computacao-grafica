@@ -52,6 +52,7 @@
 #include "Entity.h"
 #include "Camera.h"
 #include "Physics.h"
+#include "collisions.h"
 
 float g_LastFrameTime = 0.0f;
 float g_DeltaTime = 0.0f;
@@ -166,7 +167,6 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mode
 void MouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
 void CursorPosCallback(GLFWwindow* window, double xpos, double ypos);
 void ScrollCallback(GLFWwindow* window, double xoffset, double yoffset);
-void DrawDebugAABB(AABB bbox);
 
 // Definimos uma estrutura que armazenará dados necessários para renderizar
 // cada objeto da cena virtual.
@@ -1710,62 +1710,6 @@ void PrintObjModelInfo(ObjModel* model)
     }
     printf("\n");
   }
-}
-
-// =================
-// AUXILIARES
-// =================
-// feita por IA
-void DrawDebugAABB(AABB bbox)
-{
-    static GLuint VAO = 0;
-    static GLuint VBO = 0;
-    static GLuint EBO = 0;
-
-    if (VAO == 0) {
-        glGenVertexArrays(1, &VAO);
-        glGenBuffers(1, &VBO);
-        glGenBuffers(1, &EBO);
-
-        GLuint indices[] = {
-            0, 1, 1, 2, 2, 3, 3, 0,
-            4, 5, 5, 6, 6, 7, 7, 4,
-            0, 4, 1, 5, 2, 6, 3, 7
-        };
-
-        glBindVertexArray(VAO);
-        
-        glBindBuffer(GL_ARRAY_BUFFER, VBO);
-        glBufferData(GL_ARRAY_BUFFER, 8 * 4 * sizeof(float), NULL, GL_DYNAMIC_DRAW);
-        glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
-        glEnableVertexAttribArray(0);
-
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-
-        glBindVertexArray(0);
-    }
-
-    float vertices[] = {
-        bbox.min.x, bbox.min.y, bbox.min.z, 1.0f,
-        bbox.max.x, bbox.min.y, bbox.min.z, 1.0f,
-        bbox.max.x, bbox.max.y, bbox.min.z, 1.0f,
-        bbox.min.x, bbox.max.y, bbox.min.z, 1.0f,
-        bbox.min.x, bbox.min.y, bbox.max.z, 1.0f,
-        bbox.max.x, bbox.min.y, bbox.max.z, 1.0f,
-        bbox.max.x, bbox.max.y, bbox.max.z, 1.0f,
-        bbox.min.x, bbox.max.y, bbox.max.z, 1.0f
-    };
-
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
-
-    glBindVertexArray(VAO);
-    glUniformMatrix4fv(g_model_uniform, 1, GL_FALSE, glm::value_ptr(Matrix_Identity()));
-    glUniform1i(g_object_id_uniform, 99); 
-
-    glDrawElements(GL_LINES, 24, GL_UNSIGNED_INT, 0);
-    glBindVertexArray(0);
 }
 
 // set makeprg=cd\ ..\ &&\ make\ run\ >/dev/null
