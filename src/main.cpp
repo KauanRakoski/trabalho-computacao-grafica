@@ -395,9 +395,49 @@ int main(int argc, char* argv[])
     pista.setScale(5.0f, 1.0f, 5.0f);
 
     Entity pista2("the_plane", PLANE);
-    pista2.setPosition(6.0f, -1.0f, 0.0f);
+    pista2.setPosition(0.0f, 1.5f, -9.3f);
     pista2.setScale(5.0f, 1.0f, 5.0f);
-    pista2.setLocalRotation(glm::radians(45.0f), 0.0f, 0.0f);
+    pista2.setLocalRotation(glm::radians(30.0f), 0.0f, 0.0f);
+
+    Entity pista3("the_plane", PLANE);
+    pista3.setPosition(0.0f, 4.0f, -18.6f);
+    pista3.setScale(5.0f, 1.0f, 5.0f);
+
+    Entity pista4("the_plane", PLANE);
+    pista4.setPosition(0.0f, 5.3f, -28.4f);
+    pista4.setScale(2.0f, 1.0f, 5.0f);
+    pista4.setLocalRotation(glm::radians(15.0f), 0.0f, 0.0f);
+
+    Entity pista5("the_plane", PLANE);
+    pista5.setPosition(0.0f, 6.6f, -35.1f);
+    pista5.setScale(2.0f, 1.0f, 2.0f);
+
+    Entity pista6("the_plane", PLANE);
+    pista6.setPosition(-6.8f, 7.9f, -35.1f);
+    pista6.setScale(5.0f, 1.0f, 2.0f);
+    pista6.setLocalRotation(0.0f, 0.0f, glm::radians(-15.0f));
+
+    Entity pista7("the_plane", PLANE);
+    pista7.setPosition(-13.6f, 9.2f, -35.1f);
+    pista7.setScale(2.0f, 1.0f, 2.0f);
+
+    Entity pista8("the_plane", PLANE);
+    pista8.setPosition(-13.6f, 10.5f, -28.4f);
+    pista8.setScale(2.0f, 1.0f, 5.0f);
+    pista8.setLocalRotation(glm::radians(-15.0f), 0.0f, 0.0f);
+
+    Entity pista9("the_plane", PLANE);
+    pista9.setPosition(-13.6f, 11.8f, -21.6f);
+    pista9.setScale(2.0f, 1.0f, 2.0f);
+
+    Entity pista10("the_plane", PLANE);
+    pista10.setPosition(-6.8f, 13.1f, -21.6f);
+    pista10.setScale(5.0f, 1.0f, 2.0f);
+    pista10.setLocalRotation(0.0f, 0.0f, glm::radians(15.0f));
+
+    Entity pista11("the_plane", PLANE);
+    pista11.setPosition(0.0f, 14.4f, -26.6f);
+    pista11.setScale(2.0f, 1.0f, 7.0f);
 
     Entity crash(std::vector<std::string>{"mesh_1", "mesh_1.001"}, std::vector<int>{CRASH, TRIKEE});    
     crash.setPosition(0.0f, 5.0f, 0.0f);
@@ -482,6 +522,18 @@ int main(int argc, char* argv[])
 
         AABB pista2Box = TransformAABB(glm::vec3(-1.0f, -0.1f, -1.0f), glm::vec3(1.0f, 0.1f, 1.0f), pista2.getModelMatrix());
 
+        AABB pista3Box = TransformAABB(glm::vec3(-1.0f, -0.1f, -1.0f), glm::vec3(1.0f, 0.1f, 1.0f), pista3.getModelMatrix());
+
+        AABB pista4Box = TransformAABB(glm::vec3(-1.0f, -0.1f, -1.0f), glm::vec3(1.0f, 0.1f, 1.0f), pista4.getModelMatrix());
+        
+        AABB pista5Box = TransformAABB(glm::vec3(-1.0f, -0.1f, -1.0f), glm::vec3(1.0f, 0.1f, 1.0f), pista5.getModelMatrix());
+        AABB pista6Box = TransformAABB(glm::vec3(-1.0f, -0.1f, -1.0f), glm::vec3(1.0f, 0.1f, 1.0f), pista6.getModelMatrix());
+        AABB pista7Box = TransformAABB(glm::vec3(-1.0f, -0.1f, -1.0f), glm::vec3(1.0f, 0.1f, 1.0f), pista7.getModelMatrix());
+        AABB pista8Box = TransformAABB(glm::vec3(-1.0f, -0.1f, -1.0f), glm::vec3(1.0f, 0.1f, 1.0f), pista8.getModelMatrix());
+        AABB pista9Box = TransformAABB(glm::vec3(-1.0f, -0.1f, -1.0f), glm::vec3(1.0f, 0.1f, 1.0f), pista9.getModelMatrix());
+        AABB pista10Box = TransformAABB(glm::vec3(-1.0f, -0.1f, -1.0f), glm::vec3(1.0f, 0.1f, 1.0f), pista10.getModelMatrix());
+        AABB pista11Box = TransformAABB(glm::vec3(-1.0f, -0.1f, -1.0f), glm::vec3(1.0f, 0.1f, 1.0f), pista11.getModelMatrix());
+
         if ( CheckCollisionAABB(crashBox, planoBox) )
         {
             crash_velocity_y = 0.0f;
@@ -501,7 +553,67 @@ int main(int argc, char* argv[])
                 crash.setPosition(crashPos.x, surfaceY, crashPos.z);
             }
         }
-
+        if ( CheckCollisionAABB(crashBox, pista3Box) )
+        {
+            crash_velocity_y = 0.0f;
+            crash.setPosition(crashPos.x, 4.0f, crashPos.z);
+        } 
+        if ( CheckCollisionAABB(crashBox, pista4Box) )
+        {
+            float surfaceY;
+            if ( GetHeightOnInclinedPlane(pista4, crashPos, surfaceY) && crashPos.y <= surfaceY + 0.25f )
+            {
+                crash_velocity_y = 0.0f;
+                crash.setPosition(crashPos.x, surfaceY, crashPos.z);
+            }
+        }
+        if ( CheckCollisionAABB(crashBox, pista5Box) )
+        {
+            crash_velocity_y = 0.0f;
+            crash.setPosition(crashPos.x, 6.6f, crashPos.z);
+        } 
+        if ( CheckCollisionAABB(crashBox, pista6Box) )
+        {
+            float surfaceY;
+            if ( GetHeightOnInclinedPlane(pista6, crashPos, surfaceY) && crashPos.y <= surfaceY + 0.25f )
+            {
+                crash_velocity_y = 0.0f;
+                crash.setPosition(crashPos.x, surfaceY, crashPos.z);
+            }
+        }
+        if ( CheckCollisionAABB(crashBox, pista7Box) )
+        {
+            crash_velocity_y = 0.0f;
+            crash.setPosition(crashPos.x, 9.2f, crashPos.z);
+        } 
+        if ( CheckCollisionAABB(crashBox, pista8Box) )
+        {
+            float surfaceY;
+            if ( GetHeightOnInclinedPlane(pista8, crashPos, surfaceY) && crashPos.y <= surfaceY + 0.25f )
+            {
+                crash_velocity_y = 0.0f;
+                crash.setPosition(crashPos.x, surfaceY, crashPos.z);
+            }
+        }
+        if ( CheckCollisionAABB(crashBox, pista9Box) )
+        {
+            crash_velocity_y = 0.0f;
+            crash.setPosition(crashPos.x, 11.8f, crashPos.z);
+        } 
+        if ( CheckCollisionAABB(crashBox, pista10Box) )
+        {
+            float surfaceY;
+            if ( GetHeightOnInclinedPlane(pista10, crashPos, surfaceY) && crashPos.y <= surfaceY + 0.25f )
+            {
+                crash_velocity_y = 0.0f;
+                crash.setPosition(crashPos.x, surfaceY, crashPos.z);
+            }
+        }
+        if ( CheckCollisionAABB(crashBox, pista11Box) )
+        {
+            crash_velocity_y = 0.0f;
+            crash.setPosition(crashPos.x, 14.4f, crashPos.z);
+        } 
         // Aqui executamos as operações de renderização
 
         // Definimos a cor do "fundo" do framebuffer como branco.  Tal cor é
@@ -595,6 +707,15 @@ int main(int argc, char* argv[])
         // Desenhamos a pista e o crash
         pista.draw();
         pista2.draw();
+        pista3.draw();
+        pista4.draw();
+        pista5.draw();
+        pista6.draw();
+        pista7.draw();
+        pista8.draw();
+        pista9.draw();
+        pista10.draw();
+        pista11.draw();
         crash.draw();
         box.draw();
 
