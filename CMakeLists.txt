@@ -15,6 +15,7 @@ set(SOURCES
   src/Entity.cpp
   src/Camera.cpp
   src/Physics.cpp
+  src/collisions.cpp
 )
 
 cmake_minimum_required(VERSION 3.5.0)

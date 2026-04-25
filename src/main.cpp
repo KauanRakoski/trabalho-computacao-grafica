@@ -39,6 +39,7 @@
 #include <glm/mat4x4.hpp>
 #include <glm/vec4.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <glm/gtc/matrix_inverse.hpp>
 
 // Headers da biblioteca para carregar modelos obj
 #include <tiny_obj_loader.h>
@@ -52,6 +53,7 @@
 #include "Entity.h"
 #include "Camera.h"
 #include "Physics.h"
+#include "collisions.h"
 
 float g_LastFrameTime = 0.0f;
 float g_DeltaTime = 0.0f;
@@ -122,6 +124,23 @@ void UpdateDeltaTime()
     g_LastFrameTime = currentFrameTime;
 }
 
+bool GetHeightOnInclinedPlane(Entity& plane, const glm::vec3& worldPos, float& outHeight)
+{
+    glm::mat4 model = plane.getModelMatrix();
+    glm::mat4 invModel = glm::inverse(model);
+    glm::vec4 localPos = invModel * glm::vec4(worldPos, 1.0f);
+
+    if (localPos.x >= -1.0f && localPos.x <= 1.0f &&
+        localPos.z >= -1.0f && localPos.z <= 1.0f)
+    {
+        glm::vec4 worldSurface = model * glm::vec4(localPos.x, 0.0f, localPos.z, 1.0f);
+        outHeight = worldSurface.y;
+        return true;
+    }
+
+    return false;
+}
+
 // Declaração de funções utilizadas para pilha de matrizes de modelagem.
 void PushMatrix(glm::mat4 M);
 void PopMatrix(glm::mat4& M);
@@ -166,7 +185,6 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mode
 void MouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
 void CursorPosCallback(GLFWwindow* window, double xpos, double ypos);
 void ScrollCallback(GLFWwindow* window, double xoffset, double yoffset);
-void DrawDebugAABB(AABB bbox);
 
 // Definimos uma estrutura que armazenará dados necessários para renderizar
 // cada objeto da cena virtual.
@@ -318,13 +336,11 @@ int main(int argc, char* argv[])
 
     // Carregamos duas imagens para serem utilizadas como textura
     LoadTextureImage("../../data/red_brick_diff_1k.jpg");      // TextureImage0
-    LoadTextureImage("../../data/rocky_terrain_02_diff_1k.jpg"); // TextureImage1
+    LoadTextureImage("../../data/red_brick_diff_1k.jpg"); // TextureImage1
 
     LoadTextureImage("../../data/crash.png"); // TextureImage2
     LoadTextureImage("../../data/trikee.png"); // TextureImage3
-
-    LoadTextureImage("../../data/cortex.png"); // TextureImage4
-    LoadTextureImage("../../data/deadinator.png"); // TextureImage5
+    LoadTextureImage("../../data/box.jpg"); // TextureImage4
 
     // Construímos a representação de objetos geométricos através de malhas de triângulos
     ObjModel spheremodel("../../data/sphere.obj");
@@ -343,9 +359,9 @@ int main(int argc, char* argv[])
     ComputeNormals(&crashModel);
     BuildTrianglesAndAddToVirtualScene(&crashModel);
 
-    ObjModel cortexModel("../../data/Cortex.obj");
-    ComputeNormals(&cortexModel);
-    BuildTrianglesAndAddToVirtualScene(&cortexModel);
+    ObjModel boxmodel("../../data/box.obj");
+    ComputeNormals(&boxmodel);
+    BuildTrianglesAndAddToVirtualScene(&boxmodel);
 
     if ( argc > 1 )
     {
@@ -372,24 +388,66 @@ int main(int argc, char* argv[])
     #define PLANE  2
     #define CRASH  3
     #define TRIKEE 4
-    #define CORTEX 5
-    #define DEADINATOR 6
+    #define BOX 5
     
     Entity pista("the_plane", PLANE);
     pista.setPosition(0.0f, -1.0f, 0.0f);
-    pista.setScale(2.0f, 1.0f, 2.0f);
+    pista.setScale(5.0f, 1.0f, 5.0f);
 
-    AABB planoBox;
-    planoBox.min = glm::vec3(-2.0f, -2.0f, -2.0f); 
-    planoBox.max = glm::vec3( 2.0f, -0.5f,  2.0f);
+    Entity pista2("the_plane", PLANE);
+    pista2.setPosition(0.0f, 1.5f, -9.3f);
+    pista2.setScale(5.0f, 1.0f, 5.0f);
+    pista2.setLocalRotation(glm::radians(30.0f), 0.0f, 0.0f);
+
+    Entity pista3("the_plane", PLANE);
+    pista3.setPosition(0.0f, 4.0f, -18.6f);
+    pista3.setScale(5.0f, 1.0f, 5.0f);
+
+    Entity pista4("the_plane", PLANE);
+    pista4.setPosition(0.0f, 5.3f, -28.4f);
+    pista4.setScale(2.0f, 1.0f, 5.0f);
+    pista4.setLocalRotation(glm::radians(15.0f), 0.0f, 0.0f);
+
+    Entity pista5("the_plane", PLANE);
+    pista5.setPosition(0.0f, 6.6f, -35.1f);
+    pista5.setScale(2.0f, 1.0f, 2.0f);
+
+    Entity pista6("the_plane", PLANE);
+    pista6.setPosition(-6.8f, 7.9f, -35.1f);
+    pista6.setScale(5.0f, 1.0f, 2.0f);
+    pista6.setLocalRotation(0.0f, 0.0f, glm::radians(-15.0f));
+
+    Entity pista7("the_plane", PLANE);
+    pista7.setPosition(-13.6f, 9.2f, -35.1f);
+    pista7.setScale(2.0f, 1.0f, 2.0f);
+
+    Entity pista8("the_plane", PLANE);
+    pista8.setPosition(-13.6f, 10.5f, -28.4f);
+    pista8.setScale(2.0f, 1.0f, 5.0f);
+    pista8.setLocalRotation(glm::radians(-15.0f), 0.0f, 0.0f);
+
+    Entity pista9("the_plane", PLANE);
+    pista9.setPosition(-13.6f, 11.8f, -21.6f);
+    pista9.setScale(2.0f, 1.0f, 2.0f);
+
+    Entity pista10("the_plane", PLANE);
+    pista10.setPosition(-6.8f, 13.1f, -21.6f);
+    pista10.setScale(5.0f, 1.0f, 2.0f);
+    pista10.setLocalRotation(0.0f, 0.0f, glm::radians(15.0f));
+
+    Entity pista11("the_plane", PLANE);
+    pista11.setPosition(0.0f, 14.4f, -26.6f);
+    pista11.setScale(2.0f, 1.0f, 7.0f);
 
     Entity crash(std::vector<std::string>{"mesh_1", "mesh_1.001"}, std::vector<int>{CRASH, TRIKEE});    
     crash.setPosition(0.0f, 5.0f, 0.0f);
     crash.setScale(0.0001f, 0.0001f, 0.0001f);
 
-    Entity cortex(std::vector<std::string>{"mesh_2", "mesh_1001"}, std::vector<int>{CORTEX, DEADINATOR});
-    cortex.setPosition(1, 1.0f, 1);
-    cortex.setScale(0.000001f, 0.000001f, 0.000001f);
+    Entity box("the_box", BOX);
+    box.setPosition(2.0f, -0.5f, 0.0f);
+    box.setScale(0.3f, 0.3f, 0.3f);
+
+
     // ============================
     //     CRIAÇÃO DA CÂMERA
     // ============================
@@ -399,13 +457,7 @@ int main(int argc, char* argv[])
     //  CONSTANTES GRAVITACIONAIS -- DEFINIR EM PHYSICS DEPOIS
     // ============================
     float crash_velocity_y = 0.0f;
-    float cortex_velocity_y = 0.0f;
     float gravity = 3.0f;
-
-    float friction = 5.0f; // atrito do solo
-
-    glm::vec3 crash_knockback = glm::vec3(0.0f, 0.0f, 0.0f);
-    glm::vec3 cortex_knockback = glm::vec3(0.0f, 0.0f, 0.0f);
 
     // ============================
     //  VARIÁVEIS DE DESENVOLVIMENTO
@@ -419,10 +471,15 @@ int main(int argc, char* argv[])
         // Lidamos com animação básica de movimento baseada em inputs
         UpdateDeltaTime();
 
-        crash.UpdatePhysics(g_DeltaTime, gravity, friction);
-        cortex.UpdatePhysics(g_DeltaTime, gravity, friction);
+        glm::vec3 oldPosition = crash.getPosition();
 
-        float speed = 2.0f;
+        crash_velocity_y -= gravity * g_DeltaTime; 
+        
+        glm::vec3 pos = crash.getPosition();
+        pos.y += crash_velocity_y * g_DeltaTime;
+        crash.setPosition(pos.x, pos.y, pos.z);
+
+        float speed = 5.0f;
         float rot_speed = 1.5f;
 
         if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
@@ -449,36 +506,114 @@ int main(int argc, char* argv[])
             crash.setPosition(pos.x, pos.y, pos.z);
         }
 
-        // Aqui interpolamos a posição do cortex
-        static float cortex_t = 0.0f;
-        float cortex_speed = 0.2f; 
+        // Definimos AABB na mão, melhorar depois
+        glm::vec3 crashPos = crash.getPosition();
+        AABB crashBox;
+        crashBox.min = crashPos - glm::vec3(0.1f, 0.0f, 0.1f);
+        crashBox.max = crashPos + glm::vec3(0.1f, 0.1f, 0.1f);
         
-        cortex_t += cortex_speed * g_DeltaTime;
-        if (cortex_t > 1.0f) {
-            cortex_t -= 1.0f;
+        AABB planoBox;
+        planoBox.min = glm::vec3(-10.0f, -2.0f, -10.0f); 
+        planoBox.max = glm::vec3(10.0f, -0.5f,  10.0f);
+
+        AABB boxBox;
+        boxBox.min = box.getPosition() - glm::vec3(0.15f, 0.15f, 0.15f);
+        boxBox.max = box.getPosition() + glm::vec3(0.15f, 0.15f, 0.15f);
+
+        AABB pista2Box = TransformAABB(glm::vec3(-1.0f, -0.1f, -1.0f), glm::vec3(1.0f, 0.1f, 1.0f), pista2.getModelMatrix());
+
+        AABB pista3Box = TransformAABB(glm::vec3(-1.0f, -0.1f, -1.0f), glm::vec3(1.0f, 0.1f, 1.0f), pista3.getModelMatrix());
+
+        AABB pista4Box = TransformAABB(glm::vec3(-1.0f, -0.1f, -1.0f), glm::vec3(1.0f, 0.1f, 1.0f), pista4.getModelMatrix());
+        
+        AABB pista5Box = TransformAABB(glm::vec3(-1.0f, -0.1f, -1.0f), glm::vec3(1.0f, 0.1f, 1.0f), pista5.getModelMatrix());
+        AABB pista6Box = TransformAABB(glm::vec3(-1.0f, -0.1f, -1.0f), glm::vec3(1.0f, 0.1f, 1.0f), pista6.getModelMatrix());
+        AABB pista7Box = TransformAABB(glm::vec3(-1.0f, -0.1f, -1.0f), glm::vec3(1.0f, 0.1f, 1.0f), pista7.getModelMatrix());
+        AABB pista8Box = TransformAABB(glm::vec3(-1.0f, -0.1f, -1.0f), glm::vec3(1.0f, 0.1f, 1.0f), pista8.getModelMatrix());
+        AABB pista9Box = TransformAABB(glm::vec3(-1.0f, -0.1f, -1.0f), glm::vec3(1.0f, 0.1f, 1.0f), pista9.getModelMatrix());
+        AABB pista10Box = TransformAABB(glm::vec3(-1.0f, -0.1f, -1.0f), glm::vec3(1.0f, 0.1f, 1.0f), pista10.getModelMatrix());
+        AABB pista11Box = TransformAABB(glm::vec3(-1.0f, -0.1f, -1.0f), glm::vec3(1.0f, 0.1f, 1.0f), pista11.getModelMatrix());
+
+        if ( CheckCollisionAABB(crashBox, planoBox) )
+        {
+            crash_velocity_y = 0.0f;
+            crash.setPosition(crashPos.x, -1.0f, crashPos.z);
+        } 
+        if ( CheckCollisionAABB(crashBox, boxBox) )
+        {
+            speed = 0.0f;
+            crash.setPosition(crashPos.x, -0.5f, crashPos.z);
+        } 
+        if ( CheckCollisionAABB(crashBox, pista2Box) )
+        {
+            float surfaceY;
+            if ( GetHeightOnInclinedPlane(pista2, crashPos, surfaceY) && crashPos.y <= surfaceY + 0.25f )
+            {
+                crash_velocity_y = 0.0f;
+                crash.setPosition(crashPos.x, surfaceY, crashPos.z);
+            }
         }
-
-        glm::vec3 p0(-2.0f, -1.0f, -1.0f); 
-        glm::vec3 p1( 2.0f, -1.0f, -2.0f); 
-        glm::vec3 p2( 2.0f, -1.0f,  2.0f); 
-        glm::vec3 p3(-2.0f, -1.0f,  2.0f); 
-
-        glm::vec3 newCortexPos = CalculateBezierPoint(cortex_t, p0, p1, p2, p3);
-        glm::vec3 cortexTangent = CalculateBezierTangent(cortex_t, p0, p1, p2, p3);
-
-        float cortexYaw = atan2(cortexTangent.x, cortexTangent.z);
-
-        newCortexPos.x += cortex.knockback.x;
-        newCortexPos.z += cortex.knockback.z;
-        newCortexPos.y = cortex.getPosition().y; 
-
-        cortex.setPosition(newCortexPos.x, newCortexPos.y, newCortexPos.z);
-        cortex.setLocalRotation(0.0f, cortexYaw + 3.14f, 0.0f);
-
-        ResolveFloorCollision(crash, planoBox, -1.0f);
-        ResolveFloorCollision(cortex, planoBox, -1.0f);
-        ResolveKartCollision(crash, cortex, 5.0f);
-
+        if ( CheckCollisionAABB(crashBox, pista3Box) )
+        {
+            crash_velocity_y = 0.0f;
+            crash.setPosition(crashPos.x, 4.0f, crashPos.z);
+        } 
+        if ( CheckCollisionAABB(crashBox, pista4Box) )
+        {
+            float surfaceY;
+            if ( GetHeightOnInclinedPlane(pista4, crashPos, surfaceY) && crashPos.y <= surfaceY + 0.25f )
+            {
+                crash_velocity_y = 0.0f;
+                crash.setPosition(crashPos.x, surfaceY, crashPos.z);
+            }
+        }
+        if ( CheckCollisionAABB(crashBox, pista5Box) )
+        {
+            crash_velocity_y = 0.0f;
+            crash.setPosition(crashPos.x, 6.6f, crashPos.z);
+        } 
+        if ( CheckCollisionAABB(crashBox, pista6Box) )
+        {
+            float surfaceY;
+            if ( GetHeightOnInclinedPlane(pista6, crashPos, surfaceY) && crashPos.y <= surfaceY + 0.25f )
+            {
+                crash_velocity_y = 0.0f;
+                crash.setPosition(crashPos.x, surfaceY, crashPos.z);
+            }
+        }
+        if ( CheckCollisionAABB(crashBox, pista7Box) )
+        {
+            crash_velocity_y = 0.0f;
+            crash.setPosition(crashPos.x, 9.2f, crashPos.z);
+        } 
+        if ( CheckCollisionAABB(crashBox, pista8Box) )
+        {
+            float surfaceY;
+            if ( GetHeightOnInclinedPlane(pista8, crashPos, surfaceY) && crashPos.y <= surfaceY + 0.25f )
+            {
+                crash_velocity_y = 0.0f;
+                crash.setPosition(crashPos.x, surfaceY, crashPos.z);
+            }
+        }
+        if ( CheckCollisionAABB(crashBox, pista9Box) )
+        {
+            crash_velocity_y = 0.0f;
+            crash.setPosition(crashPos.x, 11.8f, crashPos.z);
+        } 
+        if ( CheckCollisionAABB(crashBox, pista10Box) )
+        {
+            float surfaceY;
+            if ( GetHeightOnInclinedPlane(pista10, crashPos, surfaceY) && crashPos.y <= surfaceY + 0.25f )
+            {
+                crash_velocity_y = 0.0f;
+                crash.setPosition(crashPos.x, surfaceY, crashPos.z);
+            }
+        }
+        if ( CheckCollisionAABB(crashBox, pista11Box) )
+        {
+            crash_velocity_y = 0.0f;
+            crash.setPosition(crashPos.x, 14.4f, crashPos.z);
+        } 
         // Aqui executamos as operações de renderização
 
         // Definimos a cor do "fundo" do framebuffer como branco.  Tal cor é
@@ -536,7 +671,7 @@ int main(int argc, char* argv[])
         // Note que, no sistema de coordenadas da câmera, os planos near e far
         // estão no sentido negativo! Veja slides 176-204 do documento Aula_09_Projecoes.pdf.
         float nearplane = -0.1f;  // Posição do "near plane"
-        float farplane  = -10.0f; // Posição do "far plane"
+        float farplane  = -100.0f; // Posição do "far plane"
 
         if (g_UsePerspectiveProjection)
         {
@@ -570,15 +705,28 @@ int main(int argc, char* argv[])
         
 
         // Desenhamos a pista e o crash
-        cortex.draw();
         pista.draw();
+        pista2.draw();
+        pista3.draw();
+        pista4.draw();
+        pista5.draw();
+        pista6.draw();
+        pista7.draw();
+        pista8.draw();
+        pista9.draw();
+        pista10.draw();
+        pista11.draw();
         crash.draw();
+        box.draw();
 
-        if (debug){
-            DrawDebugAABB(crash.getAABB(0.1f));
+        if (debug == true){
+            DrawDebugAABB(crashBox);
             DrawDebugAABB(planoBox);
-            DrawDebugAABB(cortex.getAABB(0.1f));
+            DrawDebugAABB(pista2Box);
         }
+        
+
+
 
         // Imprimimos na tela os ângulos de Euler que controlam a rotação do
         // terceiro cubo.
@@ -736,7 +884,6 @@ void LoadShadersFromFiles()
     glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage2"), 2);
     glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage3"), 3);
     glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage4"), 4);
-    glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage5"), 5);
     
     glUseProgram(0);
 }
@@ -1729,62 +1876,6 @@ void PrintObjModelInfo(ObjModel* model)
     }
     printf("\n");
   }
-}
-
-// =================
-// AUXILIARES
-// =================
-// feita por IA
-void DrawDebugAABB(AABB bbox)
-{
-    static GLuint VAO = 0;
-    static GLuint VBO = 0;
-    static GLuint EBO = 0;
-
-    if (VAO == 0) {
-        glGenVertexArrays(1, &VAO);
-        glGenBuffers(1, &VBO);
-        glGenBuffers(1, &EBO);
-
-        GLuint indices[] = {
-            0, 1, 1, 2, 2, 3, 3, 0,
-            4, 5, 5, 6, 6, 7, 7, 4,
-            0, 4, 1, 5, 2, 6, 3, 7
-        };
-
-        glBindVertexArray(VAO);
-        
-        glBindBuffer(GL_ARRAY_BUFFER, VBO);
-        glBufferData(GL_ARRAY_BUFFER, 8 * 4 * sizeof(float), NULL, GL_DYNAMIC_DRAW);
-        glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
-        glEnableVertexAttribArray(0);
-
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-
-        glBindVertexArray(0);
-    }
-
-    float vertices[] = {
-        bbox.min.x, bbox.min.y, bbox.min.z, 1.0f,
-        bbox.max.x, bbox.min.y, bbox.min.z, 1.0f,
-        bbox.max.x, bbox.max.y, bbox.min.z, 1.0f,
-        bbox.min.x, bbox.max.y, bbox.min.z, 1.0f,
-        bbox.min.x, bbox.min.y, bbox.max.z, 1.0f,
-        bbox.max.x, bbox.min.y, bbox.max.z, 1.0f,
-        bbox.max.x, bbox.max.y, bbox.max.z, 1.0f,
-        bbox.min.x, bbox.max.y, bbox.max.z, 1.0f
-    };
-
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
-
-    glBindVertexArray(VAO);
-    glUniformMatrix4fv(g_model_uniform, 1, GL_FALSE, glm::value_ptr(Matrix_Identity()));
-    glUniform1i(g_object_id_uniform, 99); 
-
-    glDrawElements(GL_LINES, 24, GL_UNSIGNED_INT, 0);
-    glBindVertexArray(0);
 }
 
 // set makeprg=cd\ ..\ &&\ make\ run\ >/dev/null
