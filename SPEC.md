@@ -9,8 +9,8 @@
 - **Aluno 1 - Nome**: <mark>`KAUAN RAKOSKI`</mark>
 - **Aluno 1 - Cartão UFRGS**: <mark>`00588935`</mark>
 
-- **Aluno 2 - Nome**: <mark>`<preencher>`</mark>
-- **Aluno 2 - Cartão UFRGS**: <mark>`<preencher>`</mark>
+- **Aluno 2 - Nome**: <mark>`Pedro Schuck`</mark>
+- **Aluno 2 - Cartão UFRGS**: <mark>`00587553`</mark>
 
 ## Detalhes do que será implementado
 
@@ -56,7 +56,7 @@ Serão carregados modelos 3D no formato .obj utilizando a biblioteca tiny_obj_lo
 O movimento do carro principal (jogador) será feito via teclado (W,A,S,D) e possivelmente via controle, se houver compatibilidade. A direção será controlada definindo a rotação (esquerda, direita) e a velocidade (W - vetor forward - ou S, dando ré ao carro).
 
 ### Diferentes tipos de câmeras
-O jogo contará com duas câmeras diferentes. Uma delas será uma câmera do tipo Look-At que se baseará em um vetor forward (que aponta a direção para onde o crash está olhando), implementando uma câmera de terceira pessoa que acompanha o jogador pelas costas.
+O jogo contará com duas câmeras diferentes. Uma delas será uma câmera do tipo Look-At que se baseará em um vetor forward (que aponta a direção para onde o crash está olhando), implementando uma câmera de terceira pessoa que acompanha o jogador pelas costas. A outra câmera consistirá em uma visualização em primeira pessoa da perspectiva do personagem principal (Crash).
 
 ### Instâncias de objetos
 O código irá se basear em um modelo de Entidades (buscando principalmente gerar um código Orientado a Objetos e facilitar escalabilidade), permitindo o reaproveitamento de modelos através da instânciação de diferentes "objetos", mudando apenas suas matrizes essenciais e atributos.
@@ -65,10 +65,10 @@ O código irá se basear em um modelo de Entidades (buscando principalmente gera
 Em primeiro momento, ao menos, o jogo irá se basear em interseções calculadas a partir de AABBs (axis-aligned-bounding-boxes). Tais AABBs serão utilizadas para verificar (e reagir) a colisões entre carros, carros e objetos e carros e chão - efetivamente criando um pequeno sistema de gravidade.
 
 ### Modelos de Iluminação em todos os objetos
-<mark>`<preencher>`</mark>
+Todos os objetos serão iluminados por pontos de iluminação local, simulando trechos mais escuros e claros da pista.
 
 ### Mapeamento de texturas em todos os objetos
-<mark>`<preencher>`</mark>
+Todos os personagens e objetos que fazem parte do cenário da pista (plantas, rochas, caixas e etc) possuirão alguma textura.
 
 ### Movimentação com curva Bézier cúbica
 Inicialmente considera-se modelar o movimento do Cortex (npc inimigo) e demais NPCs, caso venham a ser adicionados, através de uma curva Bézier. Caso, por algum motivo, tal sugestão seja abandonada, essas curvas serão utilizadas para modelar o comportamento de coletáveis, como caixas e frutas de pontos.
