@@ -15,7 +15,7 @@
 ## Detalhes do que será implementado
 
 - **Título do trabalho**: <mark>`Crashando de Carros`</mark>
-- **Parágrafo curto descrevendo o que será implementado**: a intenção deste trabalho é implementar parcialmente, isto é, com simplificações em relação ao original, um mini jogo inspirado em Crash Nitro Kart de Playstation 2, onde o jogador poderá controlar o seu carro e competir contra NPCs com o objetivo de ser o primeiro a completar uma volta na pista.
+- **Parágrafo curto descrevendo o que será implementado**: A intenção deste trabalho é implementar parcialmente, isto é, com simplificações em relação ao original, um mini jogo inspirado em Crash Nitro Kart de Playstation 2, onde o jogador poderá controlar o seu carro e competir contra NPCs com o objetivo de ser o primeiro a completar uma volta na pista.
 
 ## Especificação visual
 
@@ -39,11 +39,11 @@ O trabalho se baseará no jogo cuja gameplay pode ser vista em https://youtu.be/
 > - Coloque aqui **três imagens** capturadas do vídeo acima, que você
 >   irá usar como ilustração para as explicações que vêm abaixo.
 
-![alt text](image.png)
+![alt text](cena.png)
 
-![alt text](image-1.png)
+![alt text](cena1.png)
 
-![alt text](image-2.png)
+![alt text](cena2.png)
 
 ## Especificação textual
 
@@ -53,28 +53,28 @@ Para cada um dos requisitos abaixo (detalhados no [Enunciado do Trabalho final -
 Serão carregados modelos 3D no formato .obj utilizando a biblioteca tiny_obj_loader. A cena contará com as malhas estruturais do personagem principal (Crash e seu kart Trikee), do inimigo (Cortex e seu carro) e a geometria do cenário (pista/plano), correspondendo aos modelos complexos vistos nas imagens de referência - ou, melhor posto, similares encontrados disponíveis em modelos online. Posteriormente, mais objetos poderão ser adicionados - e.g. caixas ou mais NPCs.
 
 ### Transformações geométricas controladas pelo usuário
-O movimento do carro principal (jogador) será feito via teclado (W,A,S,D) e possivelmente via controle, se houver compatibilidade. A direção será controlada definindo a rotação (esquerda, direita) e a velocidade (W - vetor forward - ou S, dando ré ao carro).
+O movimento do carro principal (jogador) será feito via teclado (W,A,S,D), sendo que a direção será controlada definindo a rotação (esquerda, direita), no plano XZ, e a velocidade (W - vetor forward - ou S, dando ré ao carro), que efetivamente aplicará uma translação na posição original. 
 
 ### Diferentes tipos de câmeras
-O jogo contará com duas câmeras diferentes. Uma delas será uma câmera do tipo Look-At que se baseará em um vetor forward (que aponta a direção para onde o crash está olhando), implementando uma câmera de terceira pessoa que acompanha o jogador pelas costas. A outra câmera consistirá em uma visualização em primeira pessoa da perspectiva do personagem principal (Crash).
+O jogo contará com duas câmeras diferentes. Uma delas será uma câmera do tipo Look-At que se baseará em um vetor forward (que aponta a direção para onde o Crash está olhando), implementando uma câmera de terceira pessoa que acompanha o jogador pelas costas. A outra câmera consistirá em uma visualização em primeira pessoa da perspectiva do personagem principal (Crash).
 
 ### Instâncias de objetos
-O código irá se basear em um modelo de Entidades (buscando principalmente gerar um código Orientado a Objetos e facilitar escalabilidade), permitindo o reaproveitamento de modelos através da instânciação de diferentes "objetos", mudando apenas suas matrizes essenciais e atributos.
+O código irá se basear em um modelo de Entidades (buscando principalmente gerar um código Orientado a Objetos e facilitar escalabilidade), permitindo o reaproveitamento de modelos através da instânciação de diferentes "objetos", mudando apenas suas matrizes essenciais e atributos, como por exemplo as caixas observadas nas imagens.
 
 ### Testes de intersecção
-Em primeiro momento, ao menos, o jogo irá se basear em interseções calculadas a partir de AABBs (axis-aligned-bounding-boxes). Tais AABBs serão utilizadas para verificar (e reagir) a colisões entre carros, carros e objetos e carros e chão - efetivamente criando um pequeno sistema de gravidade.
+Em um primeiro momento, ao menos, o jogo irá se basear em interseções calculadas a partir de AABBs (axis-aligned-bounding-boxes). Tais AABBs serão utilizadas para verificar (e reagir) a colisões entre carros, carros e objetos e carros e chão - efetivamente criando um pequeno sistema de gravidade.
 
 ### Modelos de Iluminação em todos os objetos
-Todos os objetos serão iluminados por pontos de iluminação local, simulando trechos mais escuros e claros da pista. Para atingir tal efeito, pretendemos fazer uso do modelo de iluminação de Phong aplicado a cada pixel em conjunto com pontos de luz individuais espalhados pela pista.
+Todos os objetos serão iluminados por pontos de iluminação local, simulando trechos mais escuros e claros da pista. Para atingir tal efeito, pretendemos, a princípio, fazer uso do modelo de iluminação de Phong aplicado a cada pixel em conjunto com pontos de luz individuais espalhados pela pista.
 
 ### Mapeamento de texturas em todos os objetos
-Todos os personagens e objetos que fazem parte do cenário da pista (plantas, rochas, caixas e etc) possuirão alguma textura. Dessa forma, buscaremos texturas idênticas ou similares para replicar da forma mais próxima possível as cenas originais no jogo em si.
+Todos os personagens e objetos que fazem parte do cenário da pista (plantas, rochas, caixas e etc) possuirão alguma textura. Dessa forma, buscaremos texturas idênticas ou suficientemente similares para replicar da forma mais próxima possível as cenas originais no jogo em si.
 
 ### Movimentação com curva Bézier cúbica
-Inicialmente considera-se modelar o movimento do Cortex (npc inimigo) e demais NPCs, caso venham a ser adicionados, através de uma curva Bézier. Caso, por algum motivo, tal sugestão seja abandonada, essas curvas serão utilizadas para modelar o comportamento de coletáveis, como caixas e frutas de pontos.
+Inicialmente considera-se modelar o movimento do Cortex (NPC inimigo) e demais NPCs, caso venham a ser adicionados, através de uma curva Bézier. Caso, por algum motivo, tal sugestão seja abandonada, essas curvas serão utilizadas para modelar o comportamento de coletáveis, como caixas e frutas.
 
 ### Animações baseadas no tempo ($\Delta t$)
-A física do jogo se baseará em tempo, aplicando efeitos dependentes de uma variável global de tempo, como por exemplo uma força de repulsão entre os carros que diminui conforme o atrito simulado dos pneus com o solo - dando a impressão de colisão real - e o sistema de gravidade, que utiliza aceleração baseada em tempo. 
+A física do jogo se baseará em tempo, aplicando efeitos dependentes de uma variável global de tempo, como por exemplo a movimentação dos NPCs ou coletáveis, bem como o sistema de gravidade, que utilizará aceleração baseada em tempo. 
 
 ## Limitações esperadas
 
@@ -85,11 +85,11 @@ A física do jogo se baseará em tempo, aplicando efeitos dependentes de uma var
 > - Para cada item, **explique por que** não será implementado ou por
 >   que será implementado parcialmente.
 
-**Física Complexa de Derrapagem:** A referência possui mecânicas complexas de derrapagem, turbo e física em geral. Como este não é o escopo da disciplina, não será nosso foco e implementaremos de modo simplificado.
+**Física Complexa de Derrapagem:** A referência possui mecânicas complexas de derrapagem, turbo e física em geral. Como este não é o escopo da disciplina, não será nosso foco e implementaremos de modo simplificado ou descartaremos tais itens.
 
-**Animações Esqueletais:** No jogo, há animações complexas de personagem ou carros (exemplo: crash contorcendo-se ao girar o volante). No trabalho, os modelos 3D serão estáticos, dado a maior facilidade para encontrar arquivos deste estilo já que o foco não é a produção de modelos.
+**Animações Esqueletais e Movimentações:** No jogo, há animações complexas de personagem ou carros (exemplo: Crash contorcendo-se ao girar o volante). No trabalho, os modelos 3D serão estáticos, dado a maior facilidade para encontrar arquivos deste estilo já que o foco não é a produção de modelos. Fora isso, certos detalhes das movimentações, como a inclinação do carro ao realizar um salto ou utilizar um turbo, serão desconsiderados por aumentarem suficientemente a complexidade do projeto sem agregar muito ao seu escopo.
 
-**Efeitos visuais e partículas:** Efeitos visuais mais complexos e particulares (como o fogo saindo do escapamento) não constam como objetivo da aplicação, para permitir um foco maior em outros componentes.
+**Efeitos visuais e partículas:** Efeitos visuais mais complexos e particulares (como o fogo e fumaça saindo do escapamento, sombras dinâmicas ou caixas quebrando-se) não constam como objetivo da aplicação, para permitir um foco maior em outros componentes.
 
 **Mapa Simplificado:** O Crash Nitro Kart possui mapas extensos e com variado relevo. A intenção é implementar um mapa desses, mas caso se mostre uma tarefa muito complexa, mapas simplificados serão utilizados no lugar, para a equipe ter mais tempo para trabalhar em outros aspectos.
 
