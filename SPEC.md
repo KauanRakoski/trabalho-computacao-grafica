@@ -41,9 +41,9 @@ O trabalho se baseará no jogo cuja gameplay pode ser vista em https://youtu.be/
 
 ![alt text](cena.png)
 
-![alt text](cena1.png)
-
 ![alt text](cena2.png)
+
+![alt text](cena3.png)
 
 ## Especificação textual
 
