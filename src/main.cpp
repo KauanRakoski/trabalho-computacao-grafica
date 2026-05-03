@@ -395,7 +395,7 @@ int main(int argc, char* argv[])
 
     Entity crash(std::vector<std::string>{"mesh_1", "mesh_1.001"}, std::vector<int>{CRASH, TRIKEE});    
     crash.setPosition(0.0f, 5.0f, 0.0f);
-    crash.setScale(0.0001f, 0.0001f, 0.0001f);
+    crash.setScale(0.00005f, 0.00005f, 0.00005f);
 
     Entity box("the_box", BOX);
     box.setPosition(2.0f, -0.5f, 0.0f);
@@ -418,6 +418,16 @@ int main(int argc, char* argv[])
     // ============================
     bool debug = true;
 
+    // ============================
+    //  VARIÁVEIS DE CONTROLE (GENERIC USB)
+    // ============================
+    GLFWgamepadstate contollerState;
+
+    float speed = 0.0f;
+    float acceleration = 3.0f;
+    float brake = 5.0f;
+    float rot_speed = 3.0f;
+
     // Ficamos em um loop infinito, renderizando, até que o usuário feche a janela
     glActiveTexture(GL_TEXTURE0);
     while (!glfwWindowShouldClose(window))
@@ -433,31 +443,69 @@ int main(int argc, char* argv[])
         pos.y += crash_velocity_y * g_DeltaTime;
         crash.setPosition(pos.x, pos.y, pos.z);
 
-        float speed = 5.0f;
-        float rot_speed = 1.5f;
+        float steer_input = 0.0f;
+        float gas_input = 0.0f;
+        
+        // leitura do teclado 
+        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) steer_input = 1.0f;
+        if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) steer_input = -1.0f;
+        if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) gas_input = 1.0f;
+        if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) gas_input = -1.0f;
 
-        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
-            glm::vec3 rot = crash.getLocalRotation();
-            rot.y += rot_speed * g_DeltaTime;
-            crash.setLocalRotation(rot.x, rot.y, rot.z);
-        }
-        if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
-            glm::vec3 rot = crash.getLocalRotation();
-            rot.y -= rot_speed * g_DeltaTime;
-            crash.setLocalRotation(rot.x, rot.y, rot.z);
+        // leitura do controle
+        int joystickId = GLFW_JOYSTICK_1;
+
+        if (glfwJoystickPresent(joystickId)) {
+            
+            int axesCount;
+            const float* axes = glfwGetJoystickAxes(joystickId, &axesCount);
+            
+            int buttonCount;
+            const unsigned char* buttons = glfwGetJoystickButtons(joystickId, &buttonCount);
+
+            if (axesCount > 0) {
+                float analog_x = axes[0]; 
+                
+                // Deadzone para não virar sozinho
+                if (std::abs(analog_x) > 0.15f) {
+                    steer_input = -analog_x; 
+                }
+            }
+
+            // Acelerar (x)
+            if (buttonCount > 2 && buttons[2] == GLFW_PRESS) gas_input = 1.0f;
+            
+            // Frear/Ré (quadrado)
+            if (buttonCount > 3 && buttons[3] == GLFW_PRESS) gas_input = -1.0f; 
         }
 
-        if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
-            glm::vec3 pos = crash.getPosition();
-            glm::vec3 forward = crash.getForwardVector();
-            pos += forward * speed * g_DeltaTime;
-            crash.setPosition(pos.x, pos.y, pos.z);
+        if (gas_input != 0.0f) {
+            speed += acceleration * gas_input * g_DeltaTime;
+        } else {
+            if (speed > 0.0f) {
+                speed -= brake * g_DeltaTime;
+                if (speed < 0.0f) speed = 0.0f;
+            } else if (speed < 0.0f) {
+                speed += brake * g_DeltaTime;
+                if (speed > 0.0f) speed = 0.0f;
+            }
         }
-        if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
-            glm::vec3 pos = crash.getPosition();
-            glm::vec3 forward = crash.getForwardVector();
-            pos -= forward * speed * g_DeltaTime;
-            crash.setPosition(pos.x, pos.y, pos.z);
+
+        float max_speed = 4.0f;
+        float max_reverse = -2.0f;
+        if (speed > max_speed) speed = max_speed;
+        if (speed < max_reverse) speed = max_reverse;
+
+        pos = crash.getPosition();
+        glm::vec3 forward = crash.getForwardVector();
+        pos += forward * speed * g_DeltaTime;
+        crash.setPosition(pos.x, pos.y, pos.z);
+
+        if (std::abs(speed) > 0.1f && steer_input != 0.0f) {
+            glm::vec3 rot = crash.getLocalRotation();
+            float steer_dir = (speed > 0.0f) ? 1.0f : -1.0f;
+            rot.y += steer_input * rot_speed * steer_dir * g_DeltaTime;
+            crash.setLocalRotation(rot.x, rot.y, rot.z);
         }
 
         // Definimos AABB na mão, melhorar depois

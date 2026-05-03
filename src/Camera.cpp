@@ -7,9 +7,9 @@ Camera::Camera(){
 }
 
 void Camera::UpdateFollow(glm::vec3 targetPosition, glm::vec3 targetForward){
-    float distance = 1.5f;
-    float camera_height = 1.0f;
-    float look_at_height = 0.5f;
+    float distance = 0.7f;
+    float camera_height = 0.3f;
+    float look_at_height = 0.04f;
 
     glm::vec3 camPos = (targetPosition - targetForward * distance);
 
