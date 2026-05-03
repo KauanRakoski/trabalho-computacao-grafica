@@ -342,6 +342,8 @@ int main(int argc, char* argv[])
     LoadTextureImage("../../data/crash.png"); // TextureImage2
     LoadTextureImage("../../data/trikee.png"); // TextureImage3
     LoadTextureImage("../../data/box.jpg"); // TextureImage4
+    LoadTextureImage("../../data/cortex.png"); // TextureImage5
+    LoadTextureImage("../../data/deadinator.png"); // TextureImage6
 
     // Construímos a representação de objetos geométricos através de malhas de triângulos
     ObjModel spheremodel("../../data/sphere.obj");
@@ -363,6 +365,10 @@ int main(int argc, char* argv[])
     ObjModel boxmodel("../../data/box.obj");
     ComputeNormals(&boxmodel);
     BuildTrianglesAndAddToVirtualScene(&boxmodel);
+
+    ObjModel cortexObj("../../data/Cortex.obj");
+    ComputeNormals(&cortexObj);
+    BuildTrianglesAndAddToVirtualScene(&cortexObj);
 
     if ( argc > 1 )
     {
@@ -390,6 +396,8 @@ int main(int argc, char* argv[])
     #define CRASH  3
     #define TRIKEE 4
     #define BOX 5
+    #define CORTEX 7
+    #define DEADINATOR 8
     
     TrackMap trackMap("../../data/map/Once Upon A Tire.obj", "../../data/map/", glm::vec3(0.0f, -1.0f, 0.0f), 0.05f);
 
@@ -400,6 +408,10 @@ int main(int argc, char* argv[])
     Entity box("the_box", BOX);
     box.setPosition(2.0f, -0.5f, 0.0f);
     box.setScale(0.3f, 0.3f, 0.3f);
+
+    Entity cortex(std::vector<std::string>{"mesh_1001", "mesh_2"}, std::vector<int>{CORTEX, DEADINATOR});
+    cortex.setPosition(0.0f, 5.0f, 0.0f);
+    cortex.setScale(0.0000005f, 0.0000005f, 0.0000005f);
 
 
     // ============================
@@ -427,6 +439,28 @@ int main(int argc, char* argv[])
     float acceleration = 3.0f;
     float brake = 5.0f;
     float rot_speed = 3.0f;
+
+    std::ofstream pathLog("../../data/crash_path.txt", std::ios::app); // append mode so we don't wipe it unless necessary, but maybe we shouldn't append. Wait, we are racing.
+    // Actually, we shouldn't wipe the crash path if we want to read it!
+    // I'll disable logging for now so we don't overwrite the path!
+    // std::ofstream pathLog("../../data/crash_path.txt");
+    // float logTimer = 0.0f;
+
+    struct PathPoint {
+        glm::vec3 position;
+        glm::vec3 rotation;
+    };
+    std::vector<PathPoint> cortexPath;
+    std::ifstream pathIn("../../data/crash_path.txt");
+    if (pathIn.is_open()) {
+        float px, py, pz, rx, ry, rz;
+        while (pathIn >> px >> py >> pz >> rx >> ry >> rz) {
+            cortexPath.push_back({glm::vec3(px, py, pz), glm::vec3(rx, ry, rz)});
+        }
+        pathIn.close();
+    }
+    float cortex_timer = 0.0f;
+    float start_timer = 3.0f;
 
     // Ficamos em um loop infinito, renderizando, até que o usuário feche a janela
     glActiveTexture(GL_TEXTURE0);
@@ -479,6 +513,12 @@ int main(int argc, char* argv[])
             if (buttonCount > 3 && buttons[3] == GLFW_PRESS) gas_input = -1.0f; 
         }
 
+        if (start_timer > 0.0f) {
+            start_timer -= g_DeltaTime;
+            gas_input = 0.0f;
+            speed = 0.0f;
+        }
+
         if (gas_input != 0.0f) {
             speed += acceleration * gas_input * g_DeltaTime;
         } else {
@@ -506,6 +546,38 @@ int main(int argc, char* argv[])
             float steer_dir = (speed > 0.0f) ? 1.0f : -1.0f;
             rot.y += steer_input * rot_speed * steer_dir * g_DeltaTime;
             crash.setLocalRotation(rot.x, rot.y, rot.z);
+        }
+
+        // Atualizar posição do Cortex com interpolação
+        if (!cortexPath.empty()) {
+            if (start_timer <= 0.0f) {
+                cortex_timer += g_DeltaTime;
+            }
+            
+            // Cada ponto foi salvo a 0.1s
+            float exact_index = cortex_timer / 0.1f;
+            int idx1 = (int)exact_index;
+            
+            // Se o Cortex chegou ao final, loop (zerando o timer)
+            if (idx1 >= cortexPath.size() - 1) {
+                cortex_timer = 0.0f;
+                idx1 = 0;
+            }
+            int idx2 = idx1 + 1;
+            if (idx2 >= cortexPath.size()) idx2 = idx1;
+            
+            float t = exact_index - (float)idx1; // Parte fracionária (0.0 a 1.0)
+            
+            glm::vec3 pos1 = cortexPath[idx1].position;
+            glm::vec3 pos2 = cortexPath[idx2].position;
+            glm::vec3 newPos = glm::mix(pos1, pos2, t);
+            
+            glm::vec3 rot1 = cortexPath[idx1].rotation;
+            glm::vec3 rot2 = cortexPath[idx2].rotation;
+            glm::vec3 newRot = glm::mix(rot1, rot2, t);
+            
+            cortex.setPosition(newPos.x, newPos.y, newPos.z);
+            cortex.setLocalRotation(newRot.x, newRot.y, newRot.z);
         }
 
         // Definimos AABB na mão, melhorar depois
@@ -646,6 +718,7 @@ int main(int argc, char* argv[])
 
         // Desenhamos a pista e o crash
         trackMap.Draw();
+        cortex.draw();
         crash.draw();
         box.draw();
 
@@ -682,6 +755,9 @@ int main(int argc, char* argv[])
         // pela biblioteca GLFW.
         glfwPollEvents();
     }
+
+    // Fechar arquivo de log
+    pathLog.close();
 
     // Finalizamos o uso dos recursos do sistema operacional
     glfwTerminate();
@@ -813,6 +889,8 @@ void LoadShadersFromFiles()
     glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage2"), 2);
     glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage3"), 3);
     glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage4"), 4);
+    glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage5"), 5);
+    glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage6"), 6);
     
     glUseProgram(0);
 }
