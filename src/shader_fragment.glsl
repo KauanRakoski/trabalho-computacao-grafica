@@ -41,6 +41,14 @@ uniform sampler2D TextureImage2;
 uniform sampler2D TextureImage3;
 uniform sampler2D TextureImage4;
 
+// Uniform para controlar o tipo de iluminação
+uniform bool use_phong;
+
+// Uniforms para múltiplas fontes de luz
+uniform vec3 light_positions[4];
+uniform vec3 light_colors[4];
+uniform int num_lights;
+
 // O valor de saída ("out") de um Fragment Shader é a cor final do fragmento.
 out vec4 color;
 
@@ -66,15 +74,23 @@ void main()
     // normais de cada vértice.
     vec4 n = normalize(normal);
 
-    // Vetor que define o sentido da fonte de luz em relação ao ponto atual.
-    vec4 l = normalize(vec4(1.0,1.0,0.0,0.0));
+    // Configuração da direção da luz baseada no modo de iluminação
+    vec3 light_dir;
+
+    if (use_phong) {
+        // Phong usa múltiplas luzes, configuração feita no loop
+    } else {
+        // Luz direcional original
+        vec4 l_old = normalize(vec4(1.0, 1.0, 0.0, 0.0));
+        light_dir = l_old.xyz;
+    }
 
     // Vetor que define o sentido da câmera em relação ao ponto atual.
-    vec4 v = normalize(camera_position - p);
+    vec3 V = normalize((camera_position - p).xyz);
 
     // Coordenadas de textura U e V
-    float U = 0.0;
-    float V = 0.0;
+    float texU = 0.0;
+    float texV = 0.0;
 
 	// Coeficiente de refletância difusa
 	vec3 Kd0;
@@ -101,11 +117,11 @@ void main()
         float theta = atan(d.x,d.z);
         float phi   = asin(d.y / rho);
 
-        U = (theta + M_PI) / 2.0 / M_PI;
-        V = (phi + M_PI_2) / M_PI;
+        texU = (theta + M_PI) / 2.0 / M_PI;
+        texV = (phi + M_PI_2) / M_PI;
 
 		// Obtemos a refletância difusa a partir da leitura da imagem TextureImage0
-		Kd0 = texture(TextureImage0, vec2(U,V)).rgb;
+		Kd0 = texture(TextureImage0, vec2(texU,texV)).rgb;
     }
     else if ( object_id == BUNNY )
     {
@@ -127,48 +143,80 @@ void main()
         float minz = bbox_min.z;
         float maxz = bbox_max.z;
 
-        U = (position_model.x - minx) / (maxx - minx);
-        V = (position_model.y - miny) / (maxy - miny);
+        texU = (position_model.x - minx) / (maxx - minx);
+        texV = (position_model.y - miny) / (maxy - miny);
 
 		// Obtemos a refletância difusa a partir da leitura da imagem TextureImage0
-		Kd0 = texture(TextureImage0, vec2(U,V)).rgb;
+		Kd0 = texture(TextureImage0, vec2(texU,texV)).rgb;
     }
     else if ( object_id == PLANE )
     {
         // Coordenadas de textura do plano, obtidas do arquivo OBJ.
-        U = texcoords.x;
-        V = texcoords.y;
+        texU = texcoords.x;
+        texV = texcoords.y;
 
 		// Obtemos a refletância difusa a partir da leitura da imagem TextureImage1
-		Kd0 = texture(TextureImage1, vec2(U,V)).rgb;
+		Kd0 = texture(TextureImage1, vec2(texU,texV)).rgb;
     }
     else if ( object_id == CRASH )
     {
-        U = texcoords.x;
-        V = texcoords.y; // Como usamos stbi_flip no C++, aqui usamos o UV puro
-        Kd0 = texture(TextureImage2, vec2(U,V)).rgb;
+        texU = texcoords.x;
+        texV = texcoords.y; // Como usamos stbi_flip no C++, aqui usamos o UV puro
+        Kd0 = texture(TextureImage2, vec2(texU,texV)).rgb;
     }
     else if ( object_id == TRIKEE )
     {
-        U = texcoords.x;
-        V = texcoords.y;
-        Kd0 = texture(TextureImage3, vec2(U,V)).rgb;
+        texU = texcoords.x;
+        texV = texcoords.y;
+        Kd0 = texture(TextureImage3, vec2(texU,texV)).rgb;
     }
     else if ( object_id == BOX )
     {
-        U = texcoords.x;
-        V = texcoords.y;
-        Kd0 = texture(TextureImage4, vec2(U,V)).rgb;
+        texU = texcoords.x;
+        texV = texcoords.y;
+        Kd0 = texture(TextureImage4, vec2(texU,texV)).rgb;
     }
     else if ( object_id == DEBUG_AABB ) {
         // caixas tem linhas verdes
         Kd0 = vec3(0.0, 1.0, 0.0);
     }
 
-    // Equação de Iluminação
-    float lambert = max(0,dot(n,l));
+    // Cálculo da iluminação baseado no modo selecionado
+    if (use_phong) {
+        // Modelo de reflexão Phong com múltiplas fontes de luz
+        vec3 ambient_color = vec3(0.25, 0.25, 0.25);
+        vec3 Ks = vec3(0.8);
+        float shininess = 64.0;
 
-    color.rgb = Kd0 * (lambert + 0.25);
+        vec3 total_diffuse = vec3(0.0);
+        vec3 total_specular = vec3(0.0);
+
+        for(int i = 0; i < num_lights; i++) {
+            vec3 L = normalize(light_positions[i] - p.xyz);
+            float diffuse_factor = max(dot(n.xyz, L), 0.0);
+            vec3 diffuse = Kd0 * diffuse_factor * light_colors[i];
+
+            float specular_factor = 0.0;
+            if (diffuse_factor > 0.0) {
+                vec3 R = reflect(-L, n.xyz);
+                specular_factor = pow(max(dot(R, V), 0.0), shininess);
+            }
+            vec3 specular = Ks * specular_factor * light_colors[i];
+
+            float distance_to_light = length(light_positions[i] - p.xyz);
+            float attenuation = 1.0 / (1.0 + 0.09 * distance_to_light + 0.032 * distance_to_light * distance_to_light);
+
+            total_diffuse += attenuation * diffuse;
+            total_specular += attenuation * specular;
+        }
+
+        vec3 phong = ambient_color * Kd0 + total_diffuse + total_specular;
+        color.rgb = clamp(phong, 0.0, 1.0);
+    } else {
+        // Iluminação original (Lambertiana simples)
+        float lambert = max(0.0, dot(n.xyz, light_dir));
+        color.rgb = Kd0 * (lambert + 0.25);
+    }
 
     // NOTE: Se você quiser fazer o rendering de objetos transparentes, é
     // necessário:
@@ -187,6 +235,5 @@ void main()
     // Cor final com correção gamma, considerando monitor sRGB.
     // Veja https://en.wikipedia.org/w/index.php?title=Gamma_correction&oldid=751281772#Windows.2C_Mac.2C_sRGB_and_TV.2Fvideo_standard_gammas
     // color.rgb = pow(color.rgb, vec3(1.0,1.0,1.0)/2.2);
-    color.rgb = Kd0;
 } 
 

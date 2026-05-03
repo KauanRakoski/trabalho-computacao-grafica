@@ -257,6 +257,29 @@ GLint g_projection_uniform;
 GLint g_object_id_uniform;
 GLint g_bbox_min_uniform;
 GLint g_bbox_max_uniform;
+GLint g_use_phong_uniform;
+GLint g_light_positions_uniform;
+GLint g_light_colors_uniform;
+GLint g_num_lights_uniform;
+
+bool g_use_phong = false;
+
+// Dados das luzes para o modelo Phong
+glm::vec3 g_light_positions[4] = {
+    glm::vec3(2.0f, 4.0f, 2.0f),   // Luz principal
+    glm::vec3(-2.0f, 4.0f, -2.0f), // Luz secundária
+    glm::vec3(0.0f, 6.0f, 0.0f),   // Luz do topo
+    glm::vec3(4.0f, 2.0f, -4.0f)   // Luz lateral
+};
+
+glm::vec3 g_light_colors[4] = {
+    glm::vec3(1.2f, 1.15f, 1.1f),  // Luz quente
+    glm::vec3(1.0f, 0.9f, 1.2f),   // Luz azulada
+    glm::vec3(1.1f, 1.1f, 1.0f),   // Luz neutra
+    glm::vec3(0.9f, 1.2f, 1.0f)    // Luz esverdeada
+};
+
+int g_num_lights = 4;
 
 // Número de texturas carregadas pela função LoadTextureImage()
 GLuint g_NumLoadedTextures = 0;
@@ -701,6 +724,10 @@ int main(int argc, char* argv[])
         // efetivamente aplicadas em todos os pontos.
         glUniformMatrix4fv(g_view_uniform       , 1 , GL_FALSE , glm::value_ptr(view));
         glUniformMatrix4fv(g_projection_uniform , 1 , GL_FALSE , glm::value_ptr(projection));
+        glUniform1i(g_use_phong_uniform, g_use_phong);
+        glUniform3fv(g_light_positions_uniform, g_num_lights, glm::value_ptr(g_light_positions[0]));
+        glUniform3fv(g_light_colors_uniform, g_num_lights, glm::value_ptr(g_light_colors[0]));
+        glUniform1i(g_num_lights_uniform, g_num_lights);
 
         
 
@@ -876,6 +903,10 @@ void LoadShadersFromFiles()
     g_object_id_uniform  = glGetUniformLocation(g_GpuProgramID, "object_id"); // Variável "object_id" em shader_fragment.glsl
     g_bbox_min_uniform   = glGetUniformLocation(g_GpuProgramID, "bbox_min");
     g_bbox_max_uniform   = glGetUniformLocation(g_GpuProgramID, "bbox_max");
+    g_use_phong_uniform  = glGetUniformLocation(g_GpuProgramID, "use_phong");
+    g_light_positions_uniform = glGetUniformLocation(g_GpuProgramID, "light_positions");
+    g_light_colors_uniform = glGetUniformLocation(g_GpuProgramID, "light_colors");
+    g_num_lights_uniform = glGetUniformLocation(g_GpuProgramID, "num_lights");
 
     // Variáveis em "shader_fragment.glsl" para acesso das imagens de textura
     glUseProgram(g_GpuProgramID);
@@ -1571,6 +1602,14 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mod)
     {
         LoadShadersFromFiles();
         fprintf(stdout,"Shaders recarregados!\n");
+        fflush(stdout);
+    }
+
+    // Se o usuário apertar a tecla I, alternamos entre iluminação Phong e original.
+    if (key == GLFW_KEY_I && action == GLFW_PRESS)
+    {
+        g_use_phong = !g_use_phong;
+        fprintf(stdout, "Iluminacao %s ativada!\n", g_use_phong ? "Phong" : "original");
         fflush(stdout);
     }
 }
