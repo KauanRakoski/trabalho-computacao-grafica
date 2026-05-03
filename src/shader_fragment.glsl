@@ -25,6 +25,7 @@ uniform mat4 projection;
 #define CRASH  3
 #define TRIKEE 4
 #define BOX    5
+#define MAP    6
 
 #define DEBUG_AABB 99
 
@@ -160,6 +161,13 @@ void main()
         V = texcoords.y;
         Kd0 = texture(TextureImage4, vec2(U,V)).rgb;
     }
+    else if ( object_id == MAP )
+    {
+        U = texcoords.x;
+        V = texcoords.y;
+        // The texture for the current MAP shape is bound to GL_TEXTURE0 dynamically in TrackMap::Draw()
+        Kd0 = texture(TextureImage0, vec2(U,V)).rgb;
+    }
     else if ( object_id == DEBUG_AABB ) {
         // caixas tem linhas verdes
         Kd0 = vec3(0.0, 1.0, 0.0);
@@ -186,7 +194,7 @@ void main()
 
     // Cor final com correção gamma, considerando monitor sRGB.
     // Veja https://en.wikipedia.org/w/index.php?title=Gamma_correction&oldid=751281772#Windows.2C_Mac.2C_sRGB_and_TV.2Fvideo_standard_gammas
-    // color.rgb = pow(color.rgb, vec3(1.0,1.0,1.0)/2.2);
-    color.rgb = Kd0;
+    color.rgb = pow(color.rgb, vec3(1.0,1.0,1.0)/2.2);
+    // color.rgb = Kd0;
 } 
 

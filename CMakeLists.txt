@@ -16,6 +16,7 @@ set(SOURCES
   src/Camera.cpp
   src/Physics.cpp
   src/collisions.cpp
+  src/TrackMap.cpp
 )
 
 cmake_minimum_required(VERSION 3.5.0)
