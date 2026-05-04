@@ -55,6 +55,8 @@ Serão carregados modelos 3D no formato .obj utilizando a biblioteca tiny_obj_lo
 ### Transformações geométricas controladas pelo usuário
 O movimento do carro principal (jogador) será feito via teclado (W,A,S,D), sendo que a direção será controlada definindo a rotação (esquerda, direita), no plano XZ, e a velocidade (W - vetor forward - ou S, dando ré ao carro), que efetivamente aplicará uma translação na posição original. 
 
+> Comentário Professor: Talvez possam usar o mouse para um controle mais preciso das rotações do Kart. Tem que experimentar.
+
 ### Diferentes tipos de câmeras
 O jogo contará com duas câmeras diferentes. Uma delas será uma câmera do tipo Look-At que se baseará em um vetor forward (que aponta a direção para onde o Crash está olhando), implementando uma câmera de terceira pessoa que acompanha o jogador pelas costas. A outra câmera consistirá em uma visualização em primeira pessoa da perspectiva do personagem principal (Crash).
 
@@ -89,7 +91,11 @@ A física do jogo se baseará em tempo, aplicando efeitos dependentes de uma var
 
 **Animações Esqueletais e Movimentações:** No jogo, há animações complexas de personagem ou carros (exemplo: Crash contorcendo-se ao girar o volante). No trabalho, os modelos 3D serão estáticos, dado a maior facilidade para encontrar arquivos deste estilo já que o foco não é a produção de modelos. Fora isso, certos detalhes das movimentações, como a inclinação do carro ao realizar um salto ou utilizar um turbo, serão desconsiderados por aumentarem suficientemente a complexidade do projeto sem agregar muito ao seu escopo.
 
+> Comentário Professor: Acho interessante tentarem focar na física de movimentação do Kart, para deixar o jogo mais interessante.
+
 **Efeitos visuais e partículas:** Efeitos visuais mais complexos e particulares (como o fogo e fumaça saindo do escapamento, sombras dinâmicas ou caixas quebrando-se) não constam como objetivo da aplicação, para permitir um foco maior em outros componentes.
+
+> Comentário Professor: A fumaça saindo do escapamento não é complicada de implementar, também daria um efeito visual interessante.
 
 **Mapa Simplificado:** O Crash Nitro Kart possui mapas extensos e com variado relevo. A intenção é implementar um mapa desses, mas caso se mostre uma tarefa muito complexa, mapas simplificados serão utilizados no lugar, para a equipe ter mais tempo para trabalhar em outros aspectos.
 
