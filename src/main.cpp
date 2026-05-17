@@ -55,6 +55,10 @@
 #include "Physics.h"
 #include "collisions.h"
 #include "TrackMap.h"
+#include "Checkpoint.h"
+
+#define MINIAUDIO_IMPLEMENTATION
+#include "miniaudio.h"
 
 float g_LastFrameTime = 0.0f;
 float g_DeltaTime = 0.0f;
@@ -344,6 +348,8 @@ int main(int argc, char* argv[])
     LoadTextureImage("../../data/box.jpg"); // TextureImage4
     LoadTextureImage("../../data/cortex.png"); // TextureImage5
     LoadTextureImage("../../data/deadinator.png"); // TextureImage6
+    LoadTextureImage("../../data/ui/crash_mugshot.jpeg"); // TextureImage7
+    LoadTextureImage("../../data/ui/cortex_mugshot.jpeg"); // TextureImage8
 
     // Construímos a representação de objetos geométricos através de malhas de triângulos
     ObjModel spheremodel("../../data/sphere.obj");
@@ -398,11 +404,13 @@ int main(int argc, char* argv[])
     #define BOX 5
     #define CORTEX 7
     #define DEADINATOR 8
+    #define CRASH_MUGSHOT 9
+    #define CORTEX_MUGSHOT 10
     
     TrackMap trackMap("../../data/map/Once Upon A Tire.obj", "../../data/map/", glm::vec3(0.0f, -1.0f, 0.0f), 0.05f);
 
     Entity crash(std::vector<std::string>{"mesh_1", "mesh_1.001"}, std::vector<int>{CRASH, TRIKEE});    
-    crash.setPosition(0.0f, 5.0f, 0.0f);
+    crash.setPosition(0.0f, 20.0f, 0.0f);
     crash.setScale(0.00005f, 0.00005f, 0.00005f);
 
     Entity box("the_box", BOX);
@@ -413,11 +421,39 @@ int main(int argc, char* argv[])
     cortex.setPosition(0.0f, 5.0f, 0.0f);
     cortex.setScale(0.0000005f, 0.0000005f, 0.0000005f);
 
+    // ============================
+    //   CRIAÇÃO DOS CHECKPOINTS
+    // ============================
+    std::vector<Checkpoint> checkpoints;
+    
+    Checkpoint c1 = Checkpoint(1, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(25.0f, 25.0f, 25.0f)); // Largada exata onde os jogadores nascem
+    Checkpoint c2 = Checkpoint(2, glm::vec3(-0.702098f, -5.295282f, -36.683403f), glm::vec3(15.0f, 15.0f, 15.0f));
+    Checkpoint c3 = Checkpoint(3, glm::vec3(22.442646f, 0.615550f, -41.123039f), glm::vec3(15.0f, 15.0f, 15.0f));
+    Checkpoint c4 = Checkpoint(4, glm::vec3(23.395777f, 0.241958f, -1.247187f), glm::vec3(15.0f, 15.0f, 15.0f));
+    Checkpoint c5 = Checkpoint(5, glm::vec3(0.155395f, -1.776799f, 23.466692f), glm::vec3(15.0f, 15.0f, 15.0f));
+    
+    checkpoints.push_back(c1);
+    checkpoints.push_back(c2);
+    checkpoints.push_back(c3);
+    checkpoints.push_back(c4);
+    checkpoints.push_back(c5);
 
     // ============================
-    //     CRIAÇÃO DA CÂMERA
+    //  GENERALIZAÇÃO DOS CARROS
+    // ============================
+    std::vector<Entity*> carros;
+    carros.push_back(&crash);
+    carros.push_back(&cortex);
+
+    // ============================
+    //     CRIAÇÃO DA CÂMERA E SOM
     // ============================
     Camera camera;
+
+    ma_engine sound_engine;
+    ma_engine_init(NULL, &sound_engine);
+
+    ma_engine_play_sound(&sound_engine, "../../data/sound/once_upon_a_tire_sound.mp3", NULL);
 
     // ============================
     //  CONSTANTES GRAVITACIONAIS -- DEFINIR EM PHYSICS DEPOIS
@@ -462,6 +498,12 @@ int main(int argc, char* argv[])
     float cortex_timer = 0.0f;
     float start_timer = 3.0f;
 
+    struct RacerRank {
+        int id;
+        int shader_id;
+        float score;
+    };
+
     // Ficamos em um loop infinito, renderizando, até que o usuário feche a janela
     glActiveTexture(GL_TEXTURE0);
     while (!glfwWindowShouldClose(window))
@@ -485,6 +527,16 @@ int main(int argc, char* argv[])
         if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) steer_input = -1.0f;
         if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) gas_input = 1.0f;
         if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) gas_input = -1.0f;
+
+        /*
+        static bool last_x_state = false;
+        bool current_x_state = (glfwGetKey(window, GLFW_KEY_X) == GLFW_PRESS);
+        if (current_x_state && !last_x_state) {
+            glm::vec3 debugPos = crash.getPosition();
+            printf("COORDS: glm::vec3(%f, %f, %f)\n", debugPos.x, debugPos.y, debugPos.z);
+        }
+        last_x_state = current_x_state;
+        */
 
         // leitura do controle
         int joystickId = GLFW_JOYSTICK_1;
@@ -580,7 +632,9 @@ int main(int argc, char* argv[])
             cortex.setLocalRotation(newRot.x, newRot.y, newRot.z);
         }
 
-        // Definimos AABB na mão, melhorar depois
+        // =========================
+        //  DETECÇÃO DE COLISÃO 
+        // =========================
         glm::vec3 crashPos = crash.getPosition();
         AABB crashBox;
         crashBox.min = crashPos - glm::vec3(0.1f, 0.0f, 0.1f);
@@ -604,6 +658,33 @@ int main(int argc, char* argv[])
             speed = 0.0f;
             crash.setPosition(crashPos.x, -0.5f, crashPos.z);
         } 
+        for (Checkpoint& checkpoint : checkpoints)
+        {
+            for (size_t i = 0; i < carros.size(); i++){
+                Entity* carro = carros[i];
+                const char* nome = (i == 0) ? "Player" : "Cortex";
+
+                if (CheckCollisionAABB(carro->getAABB(), checkpoint.getAABB()))
+                {
+                    if (checkpoint.id == 1) {
+                        if (carro->current_checkpoint == checkpoints.size()) {
+                            carro->current_lap++;
+                            printf("🏎️ %s completou a volta %d!\n", nome, carro->current_lap);
+                            carro->current_checkpoint = 1;
+                        } else if (carro->current_checkpoint == 0) {
+                            printf("🏁 %s cruzou a linha de largada!\n", nome);
+                            carro->current_checkpoint = 1;
+                        }
+                    } else {
+                        if (carro->current_checkpoint == checkpoint.id - 1) {
+                            printf("✅ %s: Checkpoint %d atingido!\n", nome, checkpoint.id);
+                            carro->current_checkpoint = checkpoint.id;
+                        }
+                    }
+                }
+            }
+        }
+
 
         // Smooth floor detection
         float floorY;
@@ -615,19 +696,6 @@ int main(int argc, char* argv[])
             }
         }
 
-        // Wall collisions using AABBs for the map are disabled because per-shape AABBs
-        // are too large (e.g., ramps) and trap the kart. 
-        // std::vector<AABB> mapAABBs = trackMap.GetCollisions();
-        // for (const auto& aabb : mapAABBs) {
-        //     if (aabb.max.y - aabb.min.y < 0.2f) continue;
-        //     
-        //     if (CheckCollisionAABB(crashBox, aabb)) {
-        //         speed = 0.0f;
-        //         crash.setPosition(oldPosition.x, crashPos.y, oldPosition.z);
-        //         crashPos = crash.getPosition();
-        //         break;
-        //     }
-        // }
         // Aqui executamos as operações de renderização
 
         // Definimos a cor do "fundo" do framebuffer como branco.  Tal cor é
@@ -725,21 +793,82 @@ int main(int argc, char* argv[])
         if (debug == true){
             DrawDebugAABB(crashBox);
             DrawDebugAABB(planoBox);
+
+            for (auto& cp : checkpoints){
+                cp.draw();
+            }
         }
-        
 
+        // ============================
+        //  CÁLCULO DO RANKING
+        // ============================
+        std::vector<RacerRank> ranks;
+        for (size_t i = 0; i < carros.size(); i++) {
+            Entity* carro = carros[i];
+            
+            int next_cp_id = carro->current_checkpoint + 1;
+            if (next_cp_id > checkpoints.size()) next_cp_id = 1;
+            
+            glm::vec3 next_cp_pos = checkpoints[next_cp_id - 1].position;
+            float dist = glm::distance(carro->getPosition(), next_cp_pos);
+            
+            float score = (carro->current_lap * 10000.0f) + (carro->current_checkpoint * 1000.0f) - dist;
+            
+            RacerRank r;
+            r.id = i;
+            r.shader_id = (i == 0) ? CRASH_MUGSHOT : CORTEX_MUGSHOT; 
+            r.score = score;
+            ranks.push_back(r);
+        }
 
+        std::sort(ranks.begin(), ranks.end(), [](const RacerRank& a, const RacerRank& b) {
+            return a.score > b.score;
+        });
 
-        // Imprimimos na tela os ângulos de Euler que controlam a rotação do
-        // terceiro cubo.
-        TextRendering_ShowEulerAngles(window);
+        // === DESENHAR HUD (UI) ===
+        glDisable(GL_DEPTH_TEST);
 
-        // Imprimimos na informação sobre a matriz de projeção sendo utilizada.
-        TextRendering_ShowProjection(window);
+        // usamos ortográfica aqui pois queremos desenhar em 2D (sem profundidade)
+        glm::mat4 projection_UI = Matrix_Orthographic(0.0f, 800.0f, 0.0f, 600.0f, -1.0f, 1.0f);
+        glm::mat4 view_UI       = Matrix_Identity();
 
-        // Imprimimos na tela informação sobre o número de quadros renderizados
-        // por segundo (frames per second).
+        glUseProgram(g_GpuProgramID); 
+        glUniformMatrix4fv(g_view_uniform, 1, GL_FALSE, glm::value_ptr(view_UI));
+        glUniformMatrix4fv(g_projection_uniform, 1, GL_FALSE, glm::value_ptr(projection_UI));
+
+        float start_y = 500.0f; // Topo esquerdo
+        for (size_t i = 0; i < ranks.size(); i++) {
+            int position = i + 1;
+            
+            // IMPORTANTE: TextRendering muda o glUseProgram, então precisamos reativar o nosso shader 3D a cada volta do loop
+            glUseProgram(g_GpuProgramID); 
+            glUniformMatrix4fv(g_view_uniform, 1, GL_FALSE, glm::value_ptr(view_UI));
+            glUniformMatrix4fv(g_projection_uniform, 1, GL_FALSE, glm::value_ptr(projection_UI));
+
+            // Rotacionamos 90 graus para deixar de pé
+            glm::mat4 model_UI = Matrix_Translate(60.0f, start_y - (i * 90.0f), 0.0f) 
+                               * Matrix_Scale(40.0f, 40.0f, 1.0f)
+                               * Matrix_Rotate_X(3.141592f / 2.0f);
+            
+            glUniformMatrix4fv(g_model_uniform, 1, GL_FALSE, glm::value_ptr(model_UI));
+            glUniform1i(g_object_id_uniform, ranks[i].shader_id);
+            DrawVirtualObject("the_plane"); 
+
+            std::string pos_text;
+            if (position == 1) pos_text = "1st";
+            else if (position == 2) pos_text = "2nd";
+            
+            float text_x = -1.0f + (120.0f / 400.0f); 
+            float text_y = 1.0f - ((600.0f - (start_y - (i * 90.0f))) / 300.0f) - 0.05f; 
+            
+            TextRendering_PrintString(window, pos_text, text_x, text_y, 2.0f);
+        }
+
+        glEnable(GL_DEPTH_TEST); // Reativa o teste de profundidade para o 3D voltar a funcionar no prox frame
+
+        // Mostra os quadros por segundo da tela (FPS) depois de desenhar tudo
         TextRendering_ShowFramesPerSecond(window);
+
 
         // O framebuffer onde OpenGL executa as operações de renderização não
         // é o mesmo que está sendo mostrado para o usuário, caso contrário
@@ -761,6 +890,7 @@ int main(int argc, char* argv[])
 
     // Finalizamos o uso dos recursos do sistema operacional
     glfwTerminate();
+    ma_engine_uninit(&sound_engine);
 
     // Fim do programa
     return 0;
@@ -891,6 +1021,8 @@ void LoadShadersFromFiles()
     glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage4"), 4);
     glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage5"), 5);
     glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage6"), 6);
+    glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage7"), 7);
+    glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage8"), 8);
     
     glUseProgram(0);
 }

@@ -28,6 +28,8 @@ uniform mat4 projection;
 #define MAP    6
 #define CORTEX 7
 #define DEADINATOR 8
+#define CRASH_MUGSHOT 9
+#define CORTEX_MUGSHOT 10
 
 #define DEBUG_AABB 99
 
@@ -45,6 +47,8 @@ uniform sampler2D TextureImage3;
 uniform sampler2D TextureImage4;
 uniform sampler2D TextureImage5;
 uniform sampler2D TextureImage6;
+uniform sampler2D TextureImage7;
+uniform sampler2D TextureImage8;
 
 // O valor de saída ("out") de um Fragment Shader é a cor final do fragmento.
 out vec4 color;
@@ -176,6 +180,18 @@ void main()
         U = texcoords.x;
         V = texcoords.y;
         Kd0 = texture(TextureImage6, vec2(U,V)).rgb;
+    }
+    else if ( object_id == CRASH_MUGSHOT )
+    {
+        U = texcoords.x;
+        V = texcoords.y;
+        Kd0 = texture(TextureImage7, vec2(U,V)).rgb;
+    }
+    else if ( object_id == CORTEX_MUGSHOT )
+    {
+        U = texcoords.x;
+        V = texcoords.y;
+        Kd0 = texture(TextureImage8, vec2(U,V)).rgb;
     }
     else if ( object_id == MAP )
     {

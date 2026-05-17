@@ -14,6 +14,10 @@ Entity::Entity(std::string name, int id) {
     global_rotation = glm::vec3(0.0f, 0.0f, 0.0f);
     scale = glm::vec3(1.0f, 1.0f, 1.0f);
     base_facing_y = 0.0f;
+    
+    current_lap = 0;
+    current_checkpoint = 0;
+    speed = 0.0f;
 }
 
 Entity::Entity(std::vector<std::string> names, std::vector<int> ids) {
@@ -24,6 +28,10 @@ Entity::Entity(std::vector<std::string> names, std::vector<int> ids) {
     global_rotation = glm::vec3(0.0f, 0.0f, 0.0f);
     scale = glm::vec3(1.0f, 1.0f, 1.0f);
     base_facing_y = 0.0f;
+    
+    current_lap = 0;
+    current_checkpoint = 0;
+    speed = 0.0f;
 }
 
 void Entity::setPosition(float x, float y, float z) {

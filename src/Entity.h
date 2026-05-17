@@ -24,6 +24,11 @@ protected:
 public:
     float velocity_y = 0.0f;
     glm::vec3 knockback = glm::vec3(0.0f);
+    
+    // Racing generic properties
+    int current_lap = 0;
+    int current_checkpoint = 0;
+    float speed = 0.0f;
 
     Entity(std::string name, int id);
     Entity(std::vector<std::string> names, std::vector<int> ids);
