@@ -295,7 +295,7 @@ int main(int argc, char* argv[])
     // Criamos uma janela do sistema operacional, com 800 colunas e 600 linhas
     // de pixels, e com título "INF01047 ...".
     GLFWwindow* window;
-    window = glfwCreateWindow(800, 600, "INF01047 - Seu Cartao - Seu Nome", NULL, NULL);
+    window = glfwCreateWindow(800, 600, "INF01047 - CRASHANDO DE CARROS", NULL, NULL);
     if (!window)
     {
         glfwTerminate();
@@ -410,7 +410,7 @@ int main(int argc, char* argv[])
     TrackMap trackMap("../../data/map/Once Upon A Tire.obj", "../../data/map/", glm::vec3(0.0f, -1.0f, 0.0f), 0.05f);
 
     Entity crash(std::vector<std::string>{"mesh_1", "mesh_1.001"}, std::vector<int>{CRASH, TRIKEE});    
-    crash.setPosition(0.0f, 20.0f, 0.0f);
+    crash.setPosition(0.0f, 80.0f, 0.0f);
     crash.setScale(0.00005f, 0.00005f, 0.00005f);
 
     Entity box("the_box", BOX);
@@ -437,6 +437,9 @@ int main(int argc, char* argv[])
     checkpoints.push_back(c3);
     checkpoints.push_back(c4);
     checkpoints.push_back(c5);
+
+    const int NUM_LAPS_TO_WIN = 2;
+    bool has_winner = false;
 
     // ============================
     //  GENERALIZAÇÃO DOS CARROS
@@ -567,10 +570,13 @@ int main(int argc, char* argv[])
 
         if (start_timer > 0.0f) {
             start_timer -= g_DeltaTime;
-            gas_input = 0.0f;
-            speed = 0.0f;
         }
 
+        if (start_timer > 0.0f || has_winner) {
+            gas_input = 0.0f;
+            steer_input = 0.0f;
+        }
+        
         if (gas_input != 0.0f) {
             speed += acceleration * gas_input * g_DeltaTime;
         } else {
@@ -601,7 +607,7 @@ int main(int argc, char* argv[])
         }
 
         // Atualizar posição do Cortex com interpolação
-        if (!cortexPath.empty()) {
+        if (!cortexPath.empty() && !has_winner) {
             if (start_timer <= 0.0f) {
                 cortex_timer += g_DeltaTime;
             }
@@ -669,6 +675,20 @@ int main(int argc, char* argv[])
                     if (checkpoint.id == 1) {
                         if (carro->current_checkpoint == checkpoints.size()) {
                             carro->current_lap++;
+
+                            if (carro->current_lap >= NUM_LAPS_TO_WIN) {
+                                if (!carro->finished) {
+                                    carro->finished = true;
+                                    carro->finish_time = (float)glfwGetTime();
+                                }
+                                if (carro == &crash) {
+                                    printf("🎊 Player venceu!\n");
+                                } else {
+                                    printf("🎊 Cortex venceu!\n");
+                                }
+                                has_winner = true;
+                            }
+
                             printf("🏎️ %s completou a volta %d!\n", nome, carro->current_lap);
                             carro->current_checkpoint = 1;
                         } else if (carro->current_checkpoint == 0) {
@@ -806,13 +826,18 @@ int main(int argc, char* argv[])
         for (size_t i = 0; i < carros.size(); i++) {
             Entity* carro = carros[i];
             
-            int next_cp_id = carro->current_checkpoint + 1;
-            if (next_cp_id > checkpoints.size()) next_cp_id = 1;
-            
-            glm::vec3 next_cp_pos = checkpoints[next_cp_id - 1].position;
-            float dist = glm::distance(carro->getPosition(), next_cp_pos);
-            
-            float score = (carro->current_lap * 10000.0f) + (carro->current_checkpoint * 1000.0f) - dist;
+            float score;
+            if (carro->finished) {
+                score = 1000000.0f - carro->finish_time;
+            } else {
+                int next_cp_id = carro->current_checkpoint + 1;
+                if (next_cp_id > checkpoints.size()) next_cp_id = 1;
+                
+                glm::vec3 next_cp_pos = checkpoints[next_cp_id - 1].position;
+                float dist = glm::distance(carro->getPosition(), next_cp_pos);
+                
+                score = (carro->current_lap * 10000.0f) + (carro->current_checkpoint * 1000.0f) - dist;
+            }
             
             RacerRank r;
             r.id = i;
