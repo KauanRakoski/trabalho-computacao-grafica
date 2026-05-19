@@ -513,6 +513,7 @@ int main(int argc, char* argv[])
 
         glm::vec3 oldPosition = crash.getPosition();
 
+        if (g_DeltaTime > 0.1f) g_DeltaTime = 0.1f; // Evitar "teletransporte" do carro caso haja uma queda brusca de FPS
         crash_velocity_y -= gravity * g_DeltaTime; 
         
         glm::vec3 pos = crash.getPosition();
@@ -669,15 +670,15 @@ int main(int argc, char* argv[])
                     if (checkpoint.id == 1) {
                         if (carro->current_checkpoint == checkpoints.size()) {
                             carro->current_lap++;
-                            printf("🏎️ %s completou a volta %d!\n", nome, carro->current_lap);
+                            printf(" %s completou a volta %d!\n", nome, carro->current_lap);
                             carro->current_checkpoint = 1;
                         } else if (carro->current_checkpoint == 0) {
-                            printf("🏁 %s cruzou a linha de largada!\n", nome);
+                            printf(" %s cruzou a linha de largada!\n", nome);
                             carro->current_checkpoint = 1;
                         }
                     } else {
                         if (carro->current_checkpoint == checkpoint.id - 1) {
-                            printf("✅ %s: Checkpoint %d atingido!\n", nome, checkpoint.id);
+                            printf(" %s: Checkpoint %d atingido!\n", nome, checkpoint.id);
                             carro->current_checkpoint = checkpoint.id;
                         }
                     }
@@ -1182,7 +1183,7 @@ void BuildTrianglesAndAddToVirtualScene(ObjModel* model)
         size_t first_index = indices.size();
         size_t num_triangles = model->shapes[shape].mesh.num_face_vertices.size();
 
-        const float minval = std::numeric_limits<float>::min();
+        const float minval = std::numeric_limits<float>::lowest();
         const float maxval = std::numeric_limits<float>::max();
 
         glm::vec3 bbox_min = glm::vec3(maxval,maxval,maxval);
