@@ -129,6 +129,20 @@ void UpdateDeltaTime()
     g_LastFrameTime = currentFrameTime;
 }
 
+glm::vec3 EvaluateCubicBezier(const glm::vec3& p0, const glm::vec3& p1, const glm::vec3& p2, const glm::vec3& p3, float t)
+{
+    float u = 1.0f - t;
+    float u2 = u * u;
+    float u3 = u2 * u;
+    float t2 = t * t;
+    float t3 = t2 * t;
+
+    return u3 * p0
+         + 3.0f * u2 * t * p1
+         + 3.0f * u * t2 * p2
+         + t3 * p3;
+}
+
 bool GetHeightOnInclinedPlane(Entity& plane, const glm::vec3& worldPos, float& outHeight)
 {
     glm::mat4 model = plane.getModelMatrix();
@@ -409,8 +423,9 @@ int main(int argc, char* argv[])
     
     TrackMap trackMap("../../data/map/Once Upon A Tire.obj", "../../data/map/", glm::vec3(0.0f, -1.0f, 0.0f), 0.05f);
     trackMap.SetWalkableSlopeDot(0.0f); // Configura o parâmetro de inclinação máxima para superfícies transitáveis (se > 0 colide no meio da pista)
+    
     Entity crash(std::vector<std::string>{"mesh_1", "mesh_1.001"}, std::vector<int>{CRASH, TRIKEE});    
-    crash.setPosition(0.0f, 20.0f, 0.0f);
+    crash.setPosition(0.5f, 1.0f, 0.0f);
     crash.setScale(0.00005f, 0.00005f, 0.00005f);
 
     Entity box("the_box", BOX);
@@ -418,7 +433,7 @@ int main(int argc, char* argv[])
     box.setScale(0.3f, 0.3f, 0.3f);
 
     Entity cortex(std::vector<std::string>{"mesh_1001", "mesh_2"}, std::vector<int>{CORTEX, DEADINATOR});
-    cortex.setPosition(0.0f, 5.0f, 0.0f);
+    cortex.setPosition(0.0f, 1.0f, 0.0f);
     cortex.setScale(0.0000005f, 0.0000005f, 0.0000005f);
 
     // ============================
@@ -740,18 +755,37 @@ int main(int argc, char* argv[])
         // // definir o sistema de coordenadas da câmera.  Veja slides 2-14, 184-190 e 236-242 do documento Aula_08_Sistemas_de_Coordenadas.pdf.
         // glm::mat4 view = Matrix_Camera_View(camera_position_c, camera_view_vector, camera_up_vector);
 
-        glm::vec3 posc = crash.getPosition();
-        glm::vec3 forwardc = crash.getForwardVector();
-        if (g_CameraFirstPerson)
+        glm::mat4 view;
+        if (start_timer > 0.0f)
         {
-            camera.UpdateFirstPerson(posc, forwardc);
+            const float intro_duration = 3.0f;
+            float t = 1.0f - glm::clamp(start_timer / intro_duration, 0.0f, 1.0f);
+
+            glm::vec3 p0(-4.0f,  2.5f, 2.0f);
+            glm::vec3 p1(-2.0f,   2.0f, -4.0f);
+            glm::vec3 p2( 2.0f,   2.0f, -4.0f);
+            glm::vec3 p3(4.0f,   2.5f, 2.0f);
+
+            glm::vec3 cameraIntroPos = EvaluateCubicBezier(p0, p1, p2, p3, t);
+            glm::vec3 lookAtCenter = (crash.getPosition() + cortex.getPosition()) * 0.5f + glm::vec3(0.0f, 0.35f, 0.0f);
+            glm::vec3 viewVector = lookAtCenter - cameraIntroPos;
+
+            view = Matrix_Camera_View(glm::vec4(cameraIntroPos, 1.0f), glm::vec4(viewVector, 0.0f), glm::vec4(0.0f, 1.0f, 0.0f, 0.0f));
         }
         else
         {
-            camera.UpdateFollow(posc, forwardc);
+            glm::vec3 posc = crash.getPosition();
+            glm::vec3 forwardc = crash.getForwardVector();
+            if (g_CameraFirstPerson)
+            {
+                camera.UpdateFirstPerson(posc, forwardc);
+            }
+            else
+            {
+                camera.UpdateFollow(posc, forwardc);
+            }
+            view = camera.GetViewMatrix();
         }
-
-        glm::mat4 view = camera.GetViewMatrix();
 
         // Agora computamos a matriz de Projeção.
         glm::mat4 projection;
