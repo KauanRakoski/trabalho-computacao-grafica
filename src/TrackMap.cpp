@@ -2,6 +2,7 @@
 #include <iostream>
 #include <stdexcept>
 #include <algorithm>
+#include <cmath>
 #include <glm/gtc/type_ptr.hpp>
 #include "matrices.h"
 #include "utils.h"
@@ -281,6 +282,29 @@ float sign_2d(glm::vec2 p1, glm::vec2 p2, glm::vec2 p3) {
     return (p1.x - p3.x) * (p2.y - p3.y) - (p2.x - p3.x) * (p1.y - p3.y);
 }
 
+static glm::vec3 TriangleNormal(const Triangle& tri) {
+    glm::vec3 edge1 = tri.v1 - tri.v0;
+    glm::vec3 edge2 = tri.v2 - tri.v0;
+    glm::vec3 normal = glm::cross(edge1, edge2);
+    float len2 = glm::dot(normal, normal);
+    if (len2 < 1e-8f) {
+        return glm::vec3(0.0f, 1.0f, 0.0f);
+    }
+    return glm::normalize(normal);
+}
+
+static float DistancePointSegmentSquaredXZ(const glm::vec2& p, const glm::vec2& a, const glm::vec2& b) {
+    glm::vec2 ab = b - a;
+    float ab_len2 = glm::dot(ab, ab);
+    if (ab_len2 == 0.0f) {
+        return glm::dot(p - a, p - a);
+    }
+    float t = glm::dot(p - a, ab) / ab_len2;
+    t = std::max(0.0f, std::min(1.0f, t));
+    glm::vec2 projection = a + ab * t;
+    return glm::dot(p - projection, p - projection);
+}
+
 bool PointInTriangleXZ(glm::vec3 pt, glm::vec3 v1, glm::vec3 v2, glm::vec3 v3) {
     glm::vec2 p(pt.x, pt.z);
     glm::vec2 a(v1.x, v1.z);
@@ -295,6 +319,71 @@ bool PointInTriangleXZ(glm::vec3 pt, glm::vec3 v1, glm::vec3 v2, glm::vec3 v3) {
     bool has_pos = (d1 > 0.0f) || (d2 > 0.0f) || (d3 > 0.0f);
     
     return !(has_neg && has_pos);
+}
+
+bool TrackMap::ResolveWallCollision(const glm::vec3& oldPos, glm::vec3& newPos, float radius) const {
+    const float kHeightTolerance = 0.25f;
+    const float kFloorPlaneMargin = 0.15f;
+    glm::vec2 newXZ(newPos.x, newPos.z);
+
+    for (const auto& tri : triangles) {
+        glm::vec3 normal = TriangleNormal(tri);
+        if (std::fabs(normal.y) >= walkable_floor_dot) {
+            continue; // Not a steep wall
+        }
+
+        float min_x = std::min({tri.v0.x, tri.v1.x, tri.v2.x}) - radius;
+        float max_x = std::max({tri.v0.x, tri.v1.x, tri.v2.x}) + radius;
+        float min_z = std::min({tri.v0.z, tri.v1.z, tri.v2.z}) - radius;
+        float max_z = std::max({tri.v0.z, tri.v1.z, tri.v2.z}) + radius;
+        if (newPos.x < min_x || newPos.x > max_x || newPos.z < min_z || newPos.z > max_z) {
+            continue;
+        }
+
+        float min_y = std::min({tri.v0.y, tri.v1.y, tri.v2.y}) - kHeightTolerance;
+        float max_y = std::max({tri.v0.y, tri.v1.y, tri.v2.y}) + kHeightTolerance;
+        if (newPos.y < min_y || newPos.y > max_y) {
+            continue;
+        }
+
+        bool insideXZ = PointInTriangleXZ(newPos, tri.v0, tri.v1, tri.v2);
+        float dist2 = insideXZ ? 0.0f : std::min({
+            DistancePointSegmentSquaredXZ(newXZ, glm::vec2(tri.v0.x, tri.v0.z), glm::vec2(tri.v1.x, tri.v1.z)),
+            DistancePointSegmentSquaredXZ(newXZ, glm::vec2(tri.v1.x, tri.v1.z), glm::vec2(tri.v2.x, tri.v2.z)),
+            DistancePointSegmentSquaredXZ(newXZ, glm::vec2(tri.v2.x, tri.v2.z), glm::vec2(tri.v0.x, tri.v0.z))
+        });
+
+        if (dist2 > radius * radius) {
+            continue;
+        }
+
+        if (std::fabs(normal.y) > 0.05f) {
+            // If this triangle is a steep ramp under the kart, do not treat it like a wall.
+            float planeY = tri.v0.y - (normal.x * (newPos.x - tri.v0.x) + normal.z * (newPos.z - tri.v0.z)) / normal.y;
+            if (newPos.y > planeY + kFloorPlaneMargin) {
+                continue;
+            }
+        }
+
+        // Prevent moving into steep geometry
+        newPos.x = oldPos.x;
+        newPos.z = oldPos.z;
+        return true;
+    }
+
+    return false;
+}
+
+void TrackMap::SetWalkableSlopeDot(float dot) {
+    // clamp to [0,1]
+    if (dot < 0.0f) dot = 0.0f;
+    if (dot > 1.0f) dot = 1.0f;
+    // const_cast because member is non-mutable and method is non-const in header
+    const_cast<TrackMap*>(this)->walkable_floor_dot = dot;
+}
+
+float TrackMap::GetWalkableSlopeDot() const {
+    return walkable_floor_dot;
 }
 
 bool TrackMap::GetFloorHeight(const glm::vec3& world_pos, float& outHeight) const {
@@ -312,13 +401,11 @@ bool TrackMap::GetFloorHeight(const glm::vec3& world_pos, float& outHeight) cons
             continue;
         }
 
-        // Calculate normal to filter out walls
-        glm::vec3 edge1 = tri.v1 - tri.v0;
-        glm::vec3 edge2 = tri.v2 - tri.v0;
-        glm::vec3 normal = glm::normalize(glm::cross(edge1, edge2));
-
-        if (normal.y < 0.1f) {
-            continue; // Wall or ceiling, not a floor
+        // Calculate normal to filter out near-vertical triangles from floor detection.
+        // Use the same walkable slope threshold as the wall collision logic.
+        glm::vec3 normal = TriangleNormal(tri);
+        if (std::fabs(normal.y) < walkable_floor_dot) {
+            continue; // Too vertical to be a floor
         }
 
         if (PointInTriangleXZ(world_pos, tri.v0, tri.v1, tri.v2)) {

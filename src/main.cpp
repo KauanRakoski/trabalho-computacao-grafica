@@ -408,7 +408,7 @@ int main(int argc, char* argv[])
     #define CORTEX_MUGSHOT 10
     
     TrackMap trackMap("../../data/map/Once Upon A Tire.obj", "../../data/map/", glm::vec3(0.0f, -1.0f, 0.0f), 0.05f);
-
+    trackMap.SetWalkableSlopeDot(0.0f); // Configura o parâmetro de inclinação máxima para superfícies transitáveis (se > 0 colide no meio da pista)
     Entity crash(std::vector<std::string>{"mesh_1", "mesh_1.001"}, std::vector<int>{CRASH, TRIKEE});    
     crash.setPosition(0.0f, 20.0f, 0.0f);
     crash.setScale(0.00005f, 0.00005f, 0.00005f);
@@ -591,7 +591,12 @@ int main(int argc, char* argv[])
 
         pos = crash.getPosition();
         glm::vec3 forward = crash.getForwardVector();
-        pos += forward * speed * g_DeltaTime;
+        glm::vec3 prevPos = pos;
+        glm::vec3 nextPos = pos + forward * speed * g_DeltaTime;
+        if (trackMap.ResolveWallCollision(prevPos, nextPos, 0.12f)) {
+            speed = 0.0f;
+        }
+        pos = nextPos;
         crash.setPosition(pos.x, pos.y, pos.z);
 
         if (std::abs(speed) > 0.1f && steer_input != 0.0f) {
