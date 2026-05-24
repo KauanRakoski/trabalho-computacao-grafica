@@ -428,9 +428,8 @@ int main(int argc, char* argv[])
     crash.setPosition(0.5f, 1.0f, 0.0f);
     crash.setScale(0.00005f, 0.00005f, 0.00005f);
 
-    Entity box("the_box", BOX);
-    box.setPosition(2.0f, -0.5f, 0.0f);
-    box.setScale(0.3f, 0.3f, 0.3f);
+    // NOTE: crate instances will be created after checkpoints are defined
+    // (we need checkpoint positions as the reference path). See below.
 
     Entity cortex(std::vector<std::string>{"mesh_1001", "mesh_2"}, std::vector<int>{CORTEX, DEADINATOR});
     cortex.setPosition(0.0f, 1.0f, 0.0f);
@@ -452,6 +451,64 @@ int main(int argc, char* argv[])
     checkpoints.push_back(c3);
     checkpoints.push_back(c4);
     checkpoints.push_back(c5);
+
+    // ============================
+    //  SPAWN QUESTION-CRATES ALONG TRACK PATH (7-12 instances)
+    // ============================
+    // We'll sample positions along the polyline formed by checkpoints,
+    // evenly spaced by distance. Each crate is snapped vertically so its
+    // bottom rests on the track surface (floorY + halfHeight).
+    const int numCrates = 19; // choose between 7 and 12 (can be adjusted)
+    const float crateScale = 0.3f;
+    const float crateHalfHeight = 0.15f; // empirical half-height in world units (matches previous AABB use)
+
+    std::vector<Entity> boxes;
+    boxes.reserve(numCrates);
+
+    // Build segment length table from checkpoints (closed loop)
+    std::vector<float> segLen;
+    std::vector<glm::vec3> pts;
+    for (auto &cp : checkpoints) pts.push_back(cp.position);
+    int nPts = (int)pts.size();
+    float totalLen = 0.0f;
+    for (int i = 0; i < nPts; ++i) {
+        glm::vec3 a = pts[i];
+        glm::vec3 b = pts[(i+1)%nPts];
+        float l = glm::length(b - a);
+        segLen.push_back(l);
+        totalLen += l;
+    }
+
+    for (int k = 0; k < numCrates; ++k) {
+        float tglobal = (float)(k + 1) / (float)(numCrates + 1); // avoid exact checkpoint positions
+        float target = tglobal * totalLen;
+        // find segment
+        float acc = 0.0f;
+        int seg = 0;
+        while (seg < (int)segLen.size() && acc + segLen[seg] < target) {
+            acc += segLen[seg];
+            ++seg;
+        }
+        if (seg >= (int)segLen.size()) seg = (int)segLen.size() - 1;
+        float segT = 0.0f;
+        if (segLen[seg] > 0.0f) segT = (target - acc) / segLen[seg];
+        glm::vec3 a = pts[seg];
+        glm::vec3 b = pts[(seg+1)%nPts];
+        glm::vec3 pos = glm::mix(a, b, segT);
+
+        // Query floor height at XZ and lift the crate so its bottom sits on floor
+        float floorY = pos.y;
+        glm::vec3 queryPos = glm::vec3(pos.x, 0.0f, pos.z);
+        if (trackMap.GetFloorHeight(queryPos, floorY)) {
+            pos.y = floorY + crateHalfHeight; // set center so bottom rests on surface
+        } else {
+            pos.y += crateHalfHeight; // fallback lift
+        }
+
+        boxes.emplace_back("the_box", BOX);
+        boxes.back().setPosition(pos.x, pos.y, pos.z);
+        boxes.back().setScale(crateScale, crateScale, crateScale);
+    }
 
     // ============================
     //  GENERALIZAÇÃO DOS CARROS
@@ -665,20 +722,12 @@ int main(int argc, char* argv[])
         planoBox.min = glm::vec3(-10.0f, -2.0f, -10.0f); 
         planoBox.max = glm::vec3(10.0f, -0.5f,  10.0f);
 
-        AABB boxBox;
-        boxBox.min = box.getPosition() - glm::vec3(0.15f, 0.15f, 0.15f);
-        boxBox.max = box.getPosition() + glm::vec3(0.15f, 0.15f, 0.15f);
-
         if ( CheckCollisionAABB(crashBox, planoBox) )
         {
             crash_velocity_y = 0.0f;
             crash.setPosition(crashPos.x, -1.0f, crashPos.z);
         } 
-        if ( CheckCollisionAABB(crashBox, boxBox) )
-        {
-            speed = 0.0f;
-            crash.setPosition(crashPos.x, -0.5f, crashPos.z);
-        } 
+        // Crates are visual triggers only; they do not block the racer.
         for (Checkpoint& checkpoint : checkpoints)
         {
             for (size_t i = 0; i < carros.size(); i++){
@@ -761,10 +810,10 @@ int main(int argc, char* argv[])
             const float intro_duration = 3.0f;
             float t = 1.0f - glm::clamp(start_timer / intro_duration, 0.0f, 1.0f);
 
-            glm::vec3 p0(-4.0f,  2.5f, 2.0f);
-            glm::vec3 p1(-2.0f,   2.0f, -4.0f);
-            glm::vec3 p2( 2.0f,   2.0f, -4.0f);
-            glm::vec3 p3(4.0f,   2.5f, 2.0f);
+            glm::vec3 p0(-4.0f,  2.5f, 1.0f);
+            glm::vec3 p1(-2.0f,   2.0f, -2.0f);
+            glm::vec3 p2( 2.0f,   2.0f, -2.0f);
+            glm::vec3 p3(4.0f,   2.5f, 1.0f);
 
             glm::vec3 cameraIntroPos = EvaluateCubicBezier(p0, p1, p2, p3, t);
             glm::vec3 lookAtCenter = (crash.getPosition() + cortex.getPosition()) * 0.5f + glm::vec3(0.0f, 0.35f, 0.0f);
@@ -824,11 +873,13 @@ int main(int argc, char* argv[])
         glUniformMatrix4fv(g_view_uniform       , 1 , GL_FALSE , glm::value_ptr(view));
         glUniformMatrix4fv(g_projection_uniform , 1 , GL_FALSE , glm::value_ptr(projection));
 
-        // Desenhamos a pista e o crash
+        // Desenhamos a pista, o crash e os crates de pergunta
         trackMap.Draw();
         cortex.draw();
         crash.draw();
-        box.draw();
+        for (auto& crate : boxes) {
+            crate.draw();
+        }
 
         if (debug == true){
             DrawDebugAABB(crashBox);
