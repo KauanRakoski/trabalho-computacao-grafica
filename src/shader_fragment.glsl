@@ -73,20 +73,21 @@ void main()
 
     // Normal do fragmento atual, interpolada pelo rasterizador a partir das
     // normais de cada vértice.
-    vec4 n = normalize(normal);
+    vec3 n = normalize(vec3(normal));
 
     // Vetor que define o sentido da fonte de luz em relação ao ponto atual.
-    vec4 l = normalize(vec4(1.0,1.0,0.0,0.0));
+    // Direcional global levemente amarelada para simular iluminação solar.
+    vec3 l = normalize(vec3(0.3, 1.0, 0.2));
 
     // Vetor que define o sentido da câmera em relação ao ponto atual.
-    vec4 v = normalize(camera_position - p);
+    vec3 v = normalize(vec3(camera_position - p));
 
     // Coordenadas de textura U e V
     float U = 0.0;
     float V = 0.0;
 
-	// Coeficiente de refletância difusa
-	vec3 Kd0;
+    // Coeficiente de refletância difusa
+    vec3 Kd0;
 
     if ( object_id == SPHERE )
     {
@@ -205,10 +206,22 @@ void main()
         Kd0 = vec3(0.0, 1.0, 0.0);
     }
 
-    // Equação de Iluminação
-    float lambert = max(0,dot(n,l));
+    // Equação de Iluminação com Blinn-Phong simplificado.
+    vec3 lightColor = vec3(1.00, 0.95, 0.82);
+    float ambientStrength = 0.25;
+    float specularStrength = 0.40;
+    float shininess = 32.0;
 
-    color.rgb = Kd0 * (lambert + 0.25);
+    vec3 ambient = ambientStrength * lightColor;
+    float diffuseIntensity = max(n.x * l.x + n.y * l.y + n.z * l.z, 0.0);
+    vec3 diffuse = diffuseIntensity * lightColor;
+
+    vec3 halfway = normalize(l + v);
+    float specAngle = max(n.x * halfway.x + n.y * halfway.y + n.z * halfway.z, 0.0);
+    float specularFactor = pow(specAngle, shininess);
+    vec3 specular = specularStrength * specularFactor * lightColor;
+
+    color.rgb = Kd0 * (ambient + diffuse) + specular;
 
     // NOTE: Se você quiser fazer o rendering de objetos transparentes, é
     // necessário:
