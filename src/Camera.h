@@ -20,6 +20,9 @@ public:
     // Atualiza a câmera para o modo primeira pessoa.
     void UpdateFirstPerson(glm::vec3 targetPosition, glm::vec3 targetForward);
 
+    // Atualiza a câmera para o modo frontal.
+    void UpdateFrontView(glm::vec3 targetPosition, glm::vec3 targetForward);
+
     // Retorna a Matriz View para mandarmos para a GPU
     glm::mat4 GetViewMatrix();
 };
