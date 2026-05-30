@@ -2,6 +2,7 @@
 #include <iostream>
 #include <stdexcept>
 #include <algorithm>
+#include <cmath>
 #include <glm/gtc/type_ptr.hpp>
 #include "matrices.h"
 #include "utils.h"
@@ -104,147 +105,154 @@ void TrackMap::LoadTexture(const std::string& filepath, GLuint& texture_id) {
 
 void TrackMap::BuildTriangles(tinyobj::attrib_t& attrib, std::vector<tinyobj::shape_t>& tiny_shapes, std::vector<tinyobj::material_t>& materials, const std::string& base_path) {
     
-    for (size_t shape = 0; shape < tiny_shapes.size(); ++shape) {
-        GLuint vertex_array_object_id;
-        glGenVertexArrays(1, &vertex_array_object_id);
-        glBindVertexArray(vertex_array_object_id);
-
+    struct ShapeGroup {
+        GLuint texture_id = 0;
         std::vector<GLuint> indices;
-        std::vector<float>  model_coefficients;
-        std::vector<float>  normal_coefficients;
-        std::vector<float>  texture_coefficients;
-
-        size_t first_index = 0;
-        size_t num_triangles = tiny_shapes[shape].mesh.num_face_vertices.size();
-
+        std::vector<float> model_coefficients;
+        std::vector<float> normal_coefficients;
+        std::vector<float> texture_coefficients;
         glm::vec3 bbox_min = glm::vec3(std::numeric_limits<float>::max());
         glm::vec3 bbox_max = glm::vec3(std::numeric_limits<float>::lowest());
+    };
 
-        // Determine texture for this shape
-        GLuint shape_texture_id = 0; // Default no texture
-        if (!tiny_shapes[shape].mesh.material_ids.empty()) {
-            int mat_id = tiny_shapes[shape].mesh.material_ids[0]; // Assume 1 material per shape
-            if (mat_id >= 0 && mat_id < materials.size()) {
-                std::string diffuse_tex = materials[mat_id].diffuse_texname;
-                // printf("Shape %d, mat_id %d, texname: '%s'\n", (int)shape, mat_id, diffuse_tex.c_str());
-                if (!diffuse_tex.empty()) {
-                    // Do not add extra slash if base_path already has one!
-                    std::string full_tex_path = base_path + diffuse_tex;
-                    LoadTexture(full_tex_path, shape_texture_id);
-                } else {
-                    // fallback if ambient texname was used?
-                    std::string ambient_tex = materials[mat_id].ambient_texname;
-                    if (!ambient_tex.empty()) {
-                        std::string full_tex_path = base_path + ambient_tex;
-                        LoadTexture(full_tex_path, shape_texture_id);
-                    }
-                }
-            } else {
-                // printf("Shape %d has invalid mat_id %d\n", (int)shape, mat_id);
-            }
+    auto ResolveTexturePath = [&](const std::string& texname) {
+        std::string full_tex_path = base_path;
+        if (!full_tex_path.empty() && full_tex_path.back() != '/' && full_tex_path.back() != '\\') {
+            full_tex_path.push_back('/');
         }
+        full_tex_path += texname;
+        return full_tex_path;
+    };
+
+    for (size_t shape = 0; shape < tiny_shapes.size(); ++shape) {
+        const auto& tiny_shape = tiny_shapes[shape];
+        std::map<int, ShapeGroup> groups;
+        size_t num_triangles = tiny_shape.mesh.num_face_vertices.size();
 
         for (size_t triangle = 0; triangle < num_triangles; ++triangle) {
-            Triangle world_tri;
-            
-            for (size_t vertex = 0; vertex < 3; ++vertex) {
-                tinyobj::index_t idx = tiny_shapes[shape].mesh.indices[3*triangle + vertex];
+            int mat_id = -1;
+            if (triangle < tiny_shape.mesh.material_ids.size()) {
+                mat_id = tiny_shape.mesh.material_ids[triangle];
+            }
 
-                indices.push_back(first_index + 3*triangle + vertex);
+            auto& group = groups[mat_id];
+            if (group.indices.empty() && group.model_coefficients.empty() && group.texture_coefficients.empty() && group.normal_coefficients.empty()) {
+                if (mat_id >= 0 && mat_id < static_cast<int>(materials.size())) {
+                    std::string diffuse_tex = materials[mat_id].diffuse_texname;
+                    if (!diffuse_tex.empty()) {
+                        LoadTexture(ResolveTexturePath(diffuse_tex), group.texture_id);
+                    } else {
+                        std::string ambient_tex = materials[mat_id].ambient_texname;
+                        if (!ambient_tex.empty()) {
+                            LoadTexture(ResolveTexturePath(ambient_tex), group.texture_id);
+                        }
+                    }
+                }
+            }
+
+            Triangle world_tri;
+            for (size_t vertex = 0; vertex < 3; ++vertex) {
+                tinyobj::index_t idx = tiny_shape.mesh.indices[3*triangle + vertex];
+                GLuint next_index = static_cast<GLuint>(group.model_coefficients.size() / 4);
+                group.indices.push_back(next_index);
 
                 float vx = attrib.vertices[3*idx.vertex_index + 0];
                 float vy = attrib.vertices[3*idx.vertex_index + 1];
                 float vz = attrib.vertices[3*idx.vertex_index + 2];
                 
-                // Transform to world space for storing the global triangle and bounding box
                 glm::vec4 world_v = modelMatrix * glm::vec4(vx, vy, vz, 1.0f);
-
                 if (vertex == 0) world_tri.v0 = glm::vec3(world_v);
                 if (vertex == 1) world_tri.v1 = glm::vec3(world_v);
                 if (vertex == 2) world_tri.v2 = glm::vec3(world_v);
 
-                bbox_min.x = std::min(bbox_min.x, world_v.x);
-                bbox_min.y = std::min(bbox_min.y, world_v.y);
-                bbox_min.z = std::min(bbox_min.z, world_v.z);
-                bbox_max.x = std::max(bbox_max.x, world_v.x);
-                bbox_max.y = std::max(bbox_max.y, world_v.y);
-                bbox_max.z = std::max(bbox_max.z, world_v.z);
+                group.bbox_min.x = std::min(group.bbox_min.x, world_v.x);
+                group.bbox_min.y = std::min(group.bbox_min.y, world_v.y);
+                group.bbox_min.z = std::min(group.bbox_min.z, world_v.z);
+                group.bbox_max.x = std::max(group.bbox_max.x, world_v.x);
+                group.bbox_max.y = std::max(group.bbox_max.y, world_v.y);
+                group.bbox_max.z = std::max(group.bbox_max.z, world_v.z);
 
-                model_coefficients.push_back(vx);
-                model_coefficients.push_back(vy);
-                model_coefficients.push_back(vz);
-                model_coefficients.push_back(1.0f);
+                group.model_coefficients.push_back(vx);
+                group.model_coefficients.push_back(vy);
+                group.model_coefficients.push_back(vz);
+                group.model_coefficients.push_back(1.0f);
 
                 if (idx.normal_index != -1) {
                     float nx = attrib.normals[3*idx.normal_index + 0];
                     float ny = attrib.normals[3*idx.normal_index + 1];
                     float nz = attrib.normals[3*idx.normal_index + 2];
-                    normal_coefficients.push_back(nx);
-                    normal_coefficients.push_back(ny);
-                    normal_coefficients.push_back(nz);
-                    normal_coefficients.push_back(0.0f);
+                    group.normal_coefficients.push_back(nx);
+                    group.normal_coefficients.push_back(ny);
+                    group.normal_coefficients.push_back(nz);
+                    group.normal_coefficients.push_back(0.0f);
                 } else {
-                    normal_coefficients.push_back(0.0f);
-                    normal_coefficients.push_back(1.0f);
-                    normal_coefficients.push_back(0.0f);
-                    normal_coefficients.push_back(0.0f);
+                    group.normal_coefficients.push_back(0.0f);
+                    group.normal_coefficients.push_back(1.0f);
+                    group.normal_coefficients.push_back(0.0f);
+                    group.normal_coefficients.push_back(0.0f);
                 }
 
                 if (idx.texcoord_index != -1) {
                     float u = attrib.texcoords[2*idx.texcoord_index + 0];
                     float v = attrib.texcoords[2*idx.texcoord_index + 1];
-                    texture_coefficients.push_back(u);
-                    texture_coefficients.push_back(v);
+                    group.texture_coefficients.push_back(u);
+                    group.texture_coefficients.push_back(v);
                 } else {
-                    texture_coefficients.push_back(0.0f);
-                    texture_coefficients.push_back(0.0f);
+                    group.texture_coefficients.push_back(0.0f);
+                    group.texture_coefficients.push_back(0.0f);
                 }
             }
-            
             this->triangles.push_back(world_tri);
         }
 
-        MapShape map_shape;
-        map_shape.name = tiny_shapes[shape].name;
-        map_shape.first_index = 0;
-        map_shape.num_indices = indices.size();
-        map_shape.vao_id = vertex_array_object_id;
-        map_shape.bbox.min = bbox_min;
-        map_shape.bbox.max = bbox_max;
-        map_shape.texture_id = shape_texture_id;
+        for (const auto& group_pair : groups) {
+            const auto& group = group_pair.second;
+            if (group.indices.empty()) continue;
 
-        shapes.push_back(map_shape);
+            GLuint vertex_array_object_id;
+            glGenVertexArrays(1, &vertex_array_object_id);
+            glBindVertexArray(vertex_array_object_id);
 
-        // Upload to GPU
-        GLuint VBO_model, VBO_normal, VBO_texture, EBO;
+            MapShape map_shape;
+            map_shape.name = tiny_shape.name;
+            map_shape.first_index = 0;
+            map_shape.num_indices = group.indices.size();
+            map_shape.vao_id = vertex_array_object_id;
+            map_shape.bbox.min = group.bbox_min;
+            map_shape.bbox.max = group.bbox_max;
+            map_shape.texture_id = group.texture_id;
+            shapes.push_back(map_shape);
 
-        glGenBuffers(1, &VBO_model);
-        glBindBuffer(GL_ARRAY_BUFFER, VBO_model);
-        glBufferData(GL_ARRAY_BUFFER, model_coefficients.size() * sizeof(float), model_coefficients.data(), GL_STATIC_DRAW);
-        glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0);
-        glEnableVertexAttribArray(0);
+            GLuint VBO_model, VBO_normal, VBO_texture, EBO;
 
-        if (!normal_coefficients.empty()) {
-            glGenBuffers(1, &VBO_normal);
-            glBindBuffer(GL_ARRAY_BUFFER, VBO_normal);
-            glBufferData(GL_ARRAY_BUFFER, normal_coefficients.size() * sizeof(float), normal_coefficients.data(), GL_STATIC_DRAW);
-            glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 0, 0);
-            glEnableVertexAttribArray(1);
+            glGenBuffers(1, &VBO_model);
+            glBindBuffer(GL_ARRAY_BUFFER, VBO_model);
+            glBufferData(GL_ARRAY_BUFFER, group.model_coefficients.size() * sizeof(float), group.model_coefficients.data(), GL_STATIC_DRAW);
+            glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0);
+            glEnableVertexAttribArray(0);
+
+            if (!group.normal_coefficients.empty()) {
+                glGenBuffers(1, &VBO_normal);
+                glBindBuffer(GL_ARRAY_BUFFER, VBO_normal);
+                glBufferData(GL_ARRAY_BUFFER, group.normal_coefficients.size() * sizeof(float), group.normal_coefficients.data(), GL_STATIC_DRAW);
+                glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 0, 0);
+                glEnableVertexAttribArray(1);
+            }
+
+            if (!group.texture_coefficients.empty()) {
+                glGenBuffers(1, &VBO_texture);
+                glBindBuffer(GL_ARRAY_BUFFER, VBO_texture);
+                glBufferData(GL_ARRAY_BUFFER, group.texture_coefficients.size() * sizeof(float), group.texture_coefficients.data(), GL_STATIC_DRAW);
+                glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 0, 0);
+                glEnableVertexAttribArray(2);
+            }
+
+            glGenBuffers(1, &EBO);
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+            glBufferData(GL_ELEMENT_ARRAY_BUFFER, group.indices.size() * sizeof(GLuint), group.indices.data(), GL_STATIC_DRAW);
+
+            glBindVertexArray(0);
         }
-
-        if (!texture_coefficients.empty()) {
-            glGenBuffers(1, &VBO_texture);
-            glBindBuffer(GL_ARRAY_BUFFER, VBO_texture);
-            glBufferData(GL_ARRAY_BUFFER, texture_coefficients.size() * sizeof(float), texture_coefficients.data(), GL_STATIC_DRAW);
-            glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 0, 0);
-            glEnableVertexAttribArray(2);
-        }
-
-        glGenBuffers(1, &EBO);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(GLuint), indices.data(), GL_STATIC_DRAW);
-
-        glBindVertexArray(0);
     }
 }
 
@@ -281,6 +289,29 @@ float sign_2d(glm::vec2 p1, glm::vec2 p2, glm::vec2 p3) {
     return (p1.x - p3.x) * (p2.y - p3.y) - (p2.x - p3.x) * (p1.y - p3.y);
 }
 
+static glm::vec3 TriangleNormal(const Triangle& tri) {
+    glm::vec3 edge1 = tri.v1 - tri.v0;
+    glm::vec3 edge2 = tri.v2 - tri.v0;
+    glm::vec3 normal = glm::cross(edge1, edge2);
+    float len2 = glm::dot(normal, normal);
+    if (len2 < 1e-8f) {
+        return glm::vec3(0.0f, 1.0f, 0.0f);
+    }
+    return glm::normalize(normal);
+}
+
+static float DistancePointSegmentSquaredXZ(const glm::vec2& p, const glm::vec2& a, const glm::vec2& b) {
+    glm::vec2 ab = b - a;
+    float ab_len2 = glm::dot(ab, ab);
+    if (ab_len2 == 0.0f) {
+        return glm::dot(p - a, p - a);
+    }
+    float t = glm::dot(p - a, ab) / ab_len2;
+    t = std::max(0.0f, std::min(1.0f, t));
+    glm::vec2 projection = a + ab * t;
+    return glm::dot(p - projection, p - projection);
+}
+
 bool PointInTriangleXZ(glm::vec3 pt, glm::vec3 v1, glm::vec3 v2, glm::vec3 v3) {
     glm::vec2 p(pt.x, pt.z);
     glm::vec2 a(v1.x, v1.z);
@@ -295,6 +326,71 @@ bool PointInTriangleXZ(glm::vec3 pt, glm::vec3 v1, glm::vec3 v2, glm::vec3 v3) {
     bool has_pos = (d1 > 0.0f) || (d2 > 0.0f) || (d3 > 0.0f);
     
     return !(has_neg && has_pos);
+}
+
+bool TrackMap::ResolveWallCollision(const glm::vec3& oldPos, glm::vec3& newPos, float radius) const {
+    const float kHeightTolerance = 0.25f;
+    const float kFloorPlaneMargin = 0.15f;
+    glm::vec2 newXZ(newPos.x, newPos.z);
+
+    for (const auto& tri : triangles) {
+        glm::vec3 normal = TriangleNormal(tri);
+        if (std::fabs(normal.y) >= walkable_floor_dot) {
+            continue; // Not a steep wall
+        }
+
+        float min_x = std::min({tri.v0.x, tri.v1.x, tri.v2.x}) - radius;
+        float max_x = std::max({tri.v0.x, tri.v1.x, tri.v2.x}) + radius;
+        float min_z = std::min({tri.v0.z, tri.v1.z, tri.v2.z}) - radius;
+        float max_z = std::max({tri.v0.z, tri.v1.z, tri.v2.z}) + radius;
+        if (newPos.x < min_x || newPos.x > max_x || newPos.z < min_z || newPos.z > max_z) {
+            continue;
+        }
+
+        float min_y = std::min({tri.v0.y, tri.v1.y, tri.v2.y}) - kHeightTolerance;
+        float max_y = std::max({tri.v0.y, tri.v1.y, tri.v2.y}) + kHeightTolerance;
+        if (newPos.y < min_y || newPos.y > max_y) {
+            continue;
+        }
+
+        bool insideXZ = PointInTriangleXZ(newPos, tri.v0, tri.v1, tri.v2);
+        float dist2 = insideXZ ? 0.0f : std::min({
+            DistancePointSegmentSquaredXZ(newXZ, glm::vec2(tri.v0.x, tri.v0.z), glm::vec2(tri.v1.x, tri.v1.z)),
+            DistancePointSegmentSquaredXZ(newXZ, glm::vec2(tri.v1.x, tri.v1.z), glm::vec2(tri.v2.x, tri.v2.z)),
+            DistancePointSegmentSquaredXZ(newXZ, glm::vec2(tri.v2.x, tri.v2.z), glm::vec2(tri.v0.x, tri.v0.z))
+        });
+
+        if (dist2 > radius * radius) {
+            continue;
+        }
+
+        if (std::fabs(normal.y) > 0.05f) {
+            // If this triangle is a steep ramp under the kart, do not treat it like a wall.
+            float planeY = tri.v0.y - (normal.x * (newPos.x - tri.v0.x) + normal.z * (newPos.z - tri.v0.z)) / normal.y;
+            if (newPos.y > planeY + kFloorPlaneMargin) {
+                continue;
+            }
+        }
+
+        // Prevent moving into steep geometry
+        newPos.x = oldPos.x;
+        newPos.z = oldPos.z;
+        return true;
+    }
+
+    return false;
+}
+
+void TrackMap::SetWalkableSlopeDot(float dot) {
+    // clamp to [0,1]
+    if (dot < 0.0f) dot = 0.0f;
+    if (dot > 1.0f) dot = 1.0f;
+    // const_cast because member is non-mutable and method is non-const in header
+    const_cast<TrackMap*>(this)->walkable_floor_dot = dot;
+}
+
+float TrackMap::GetWalkableSlopeDot() const {
+    return walkable_floor_dot;
 }
 
 bool TrackMap::GetFloorHeight(const glm::vec3& world_pos, float& outHeight) const {
@@ -312,13 +408,11 @@ bool TrackMap::GetFloorHeight(const glm::vec3& world_pos, float& outHeight) cons
             continue;
         }
 
-        // Calculate normal to filter out walls
-        glm::vec3 edge1 = tri.v1 - tri.v0;
-        glm::vec3 edge2 = tri.v2 - tri.v0;
-        glm::vec3 normal = glm::normalize(glm::cross(edge1, edge2));
-
-        if (normal.y < 0.1f) {
-            continue; // Wall or ceiling, not a floor
+        // Calculate normal to filter out near-vertical triangles from floor detection.
+        // Use the same walkable slope threshold as the wall collision logic.
+        glm::vec3 normal = TriangleNormal(tri);
+        if (std::fabs(normal.y) < walkable_floor_dot) {
+            continue; // Too vertical to be a floor
         }
 
         if (PointInTriangleXZ(world_pos, tri.v0, tri.v1, tri.v2)) {

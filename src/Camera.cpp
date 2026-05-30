@@ -34,6 +34,20 @@ void Camera::UpdateFirstPerson(glm::vec3 targetPosition, glm::vec3 targetForward
     this->upVector = glm::vec4(0, 1, 0, 0);
 }
 
+void Camera::UpdateFrontView(glm::vec3 targetPosition, glm::vec3 targetForward){
+    float distance = 0.8f;
+    float camera_height = 0.35f;
+    float look_at_height = 0.15f;
+    float look_back = 0.3f;
+
+    glm::vec3 camPos = targetPosition + targetForward * distance;
+    glm::vec3 lookAt = targetPosition - targetForward * look_back;
+
+    this->position = glm::vec4(camPos.x, camPos.y + camera_height, camPos.z, 1.0f);
+    this->lookAtTarget = glm::vec4(lookAt.x, lookAt.y + look_at_height, lookAt.z, 1.0f);
+    this->upVector = glm::vec4(0, 1, 0, 0);
+}
+
 glm::mat4 Camera::GetViewMatrix(){
     glm::vec4 viewVector = this->lookAtTarget - this->position;
     return Matrix_Camera_View(this->position, viewVector, this->upVector);

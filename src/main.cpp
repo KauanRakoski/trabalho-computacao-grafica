@@ -129,6 +129,20 @@ void UpdateDeltaTime()
     g_LastFrameTime = currentFrameTime;
 }
 
+glm::vec3 EvaluateCubicBezier(const glm::vec3& p0, const glm::vec3& p1, const glm::vec3& p2, const glm::vec3& p3, float t)
+{
+    float u = 1.0f - t;
+    float u2 = u * u;
+    float u3 = u2 * u;
+    float t2 = t * t;
+    float t3 = t2 * t;
+
+    return u3 * p0
+         + 3.0f * u2 * t * p1
+         + 3.0f * u * t2 * p2
+         + t3 * p3;
+}
+
 bool GetHeightOnInclinedPlane(Entity& plane, const glm::vec3& worldPos, float& outHeight)
 {
     glm::mat4 model = plane.getModelMatrix();
@@ -251,8 +265,8 @@ bool g_UsePerspectiveProjection = true;
 // Variável que controla se o texto informativo será mostrado na tela.
 bool g_ShowInfoText = true;
 
-// Variável que controla se a câmera está em modo primeira pessoa.
-bool g_CameraFirstPerson = false;
+// Variável que controla o modo atual da câmera: 0=perseguição, 1=primeira pessoa, 2=frontal.
+int g_CameraMode = 0;
 
 // Variáveis que definem um programa de GPU (shaders). Veja função LoadShadersFromFiles().
 GLuint g_GpuProgramID = 0;
@@ -408,17 +422,17 @@ int main(int argc, char* argv[])
     #define CORTEX_MUGSHOT 10
     
     TrackMap trackMap("../../data/map/Once Upon A Tire.obj", "../../data/map/", glm::vec3(0.0f, -1.0f, 0.0f), 0.05f);
-
+    trackMap.SetWalkableSlopeDot(0.0f); // Configura o parâmetro de inclinação máxima para superfícies transitáveis (se > 0 colide no meio da pista)
+    
     Entity crash(std::vector<std::string>{"mesh_1", "mesh_1.001"}, std::vector<int>{CRASH, TRIKEE});    
-    crash.setPosition(0.0f, 80.0f, 0.0f);
+    crash.setPosition(0.5f, 1.0f, 0.0f);
     crash.setScale(0.00005f, 0.00005f, 0.00005f);
 
-    Entity box("the_box", BOX);
-    box.setPosition(2.0f, -0.5f, 0.0f);
-    box.setScale(0.3f, 0.3f, 0.3f);
+    // NOTE: crate instances will be created after checkpoints are defined
+    // (we need checkpoint positions as the reference path). See below.
 
     Entity cortex(std::vector<std::string>{"mesh_1001", "mesh_2"}, std::vector<int>{CORTEX, DEADINATOR});
-    cortex.setPosition(0.0f, 5.0f, 0.0f);
+    cortex.setPosition(0.0f, 1.0f, 0.0f);
     cortex.setScale(0.0000005f, 0.0000005f, 0.0000005f);
 
     // ============================
@@ -440,6 +454,64 @@ int main(int argc, char* argv[])
 
     const int NUM_LAPS_TO_WIN = 2;
     bool has_winner = false;
+
+    // ============================
+    //  SPAWN QUESTION-CRATES ALONG TRACK PATH (7-12 instances)
+    // ============================
+    // We'll sample positions along the polyline formed by checkpoints,
+    // evenly spaced by distance. Each crate is snapped vertically so its
+    // bottom rests on the track surface (floorY + halfHeight).
+    const int numCrates = 19; // choose between 7 and 12 (can be adjusted)
+    const float crateScale = 0.3f;
+    const float crateHalfHeight = 0.15f; // empirical half-height in world units (matches previous AABB use)
+
+    std::vector<Entity> boxes;
+    boxes.reserve(numCrates);
+
+    // Build segment length table from checkpoints (closed loop)
+    std::vector<float> segLen;
+    std::vector<glm::vec3> pts;
+    for (auto &cp : checkpoints) pts.push_back(cp.position);
+    int nPts = (int)pts.size();
+    float totalLen = 0.0f;
+    for (int i = 0; i < nPts; ++i) {
+        glm::vec3 a = pts[i];
+        glm::vec3 b = pts[(i+1)%nPts];
+        float l = glm::length(b - a);
+        segLen.push_back(l);
+        totalLen += l;
+    }
+
+    for (int k = 0; k < numCrates; ++k) {
+        float tglobal = (float)(k + 1) / (float)(numCrates + 1); // avoid exact checkpoint positions
+        float target = tglobal * totalLen;
+        // find segment
+        float acc = 0.0f;
+        int seg = 0;
+        while (seg < (int)segLen.size() && acc + segLen[seg] < target) {
+            acc += segLen[seg];
+            ++seg;
+        }
+        if (seg >= (int)segLen.size()) seg = (int)segLen.size() - 1;
+        float segT = 0.0f;
+        if (segLen[seg] > 0.0f) segT = (target - acc) / segLen[seg];
+        glm::vec3 a = pts[seg];
+        glm::vec3 b = pts[(seg+1)%nPts];
+        glm::vec3 pos = glm::mix(a, b, segT);
+
+        // Query floor height at XZ and lift the crate so its bottom sits on floor
+        float floorY = pos.y;
+        glm::vec3 queryPos = glm::vec3(pos.x, 0.0f, pos.z);
+        if (trackMap.GetFloorHeight(queryPos, floorY)) {
+            pos.y = floorY + crateHalfHeight; // set center so bottom rests on surface
+        } else {
+            pos.y += crateHalfHeight; // fallback lift
+        }
+
+        boxes.emplace_back("the_box", BOX);
+        boxes.back().setPosition(pos.x, pos.y, pos.z);
+        boxes.back().setScale(crateScale, crateScale, crateScale);
+    }
 
     // ============================
     //  GENERALIZAÇÃO DOS CARROS
@@ -516,6 +588,7 @@ int main(int argc, char* argv[])
 
         glm::vec3 oldPosition = crash.getPosition();
 
+        if (g_DeltaTime > 0.1f) g_DeltaTime = 0.1f; // Evitar "teletransporte" do carro caso haja uma queda brusca de FPS
         crash_velocity_y -= gravity * g_DeltaTime; 
         
         glm::vec3 pos = crash.getPosition();
@@ -596,7 +669,12 @@ int main(int argc, char* argv[])
 
         pos = crash.getPosition();
         glm::vec3 forward = crash.getForwardVector();
-        pos += forward * speed * g_DeltaTime;
+        glm::vec3 prevPos = pos;
+        glm::vec3 nextPos = pos + forward * speed * g_DeltaTime;
+        if (trackMap.ResolveWallCollision(prevPos, nextPos, 0.12f)) {
+            speed = 0.0f;
+        }
+        pos = nextPos;
         crash.setPosition(pos.x, pos.y, pos.z);
 
         if (std::abs(speed) > 0.1f && steer_input != 0.0f) {
@@ -669,20 +747,12 @@ int main(int argc, char* argv[])
         planoBox.min = glm::vec3(-10.0f, -2.0f, -10.0f); 
         planoBox.max = glm::vec3(10.0f, -0.5f,  10.0f);
 
-        AABB boxBox;
-        boxBox.min = box.getPosition() - glm::vec3(0.15f, 0.15f, 0.15f);
-        boxBox.max = box.getPosition() + glm::vec3(0.15f, 0.15f, 0.15f);
-
         if ( CheckCollisionAABB(crashBox, planoBox) )
         {
             crash_velocity_y = 0.0f;
             crash.setPosition(crashPos.x, -1.0f, crashPos.z);
         } 
-        if ( CheckCollisionAABB(crashBox, boxBox) )
-        {
-            speed = 0.0f;
-            crash.setPosition(crashPos.x, -0.5f, crashPos.z);
-        } 
+        // Crates are visual triggers only; they do not block the racer.
         for (Checkpoint& checkpoint : checkpoints)
         {
             for (size_t i = 0; i < carros.size(); i++){
@@ -708,15 +778,15 @@ int main(int argc, char* argv[])
                                 has_winner = true;
                             }
 
-                            printf("🏎️ %s completou a volta %d!\n", nome, carro->current_lap);
+                            printf(" %s completou a volta %d!\n", nome, carro->current_lap);
                             carro->current_checkpoint = 1;
                         } else if (carro->current_checkpoint == 0) {
-                            printf("🏁 %s cruzou a linha de largada!\n", nome);
+                            printf(" %s cruzou a linha de largada!\n", nome);
                             carro->current_checkpoint = 1;
                         }
                     } else {
                         if (carro->current_checkpoint == checkpoint.id - 1) {
-                            printf("✅ %s: Checkpoint %d atingido!\n", nome, checkpoint.id);
+                            printf(" %s: Checkpoint %d atingido!\n", nome, checkpoint.id);
                             carro->current_checkpoint = checkpoint.id;
                         }
                     }
@@ -773,18 +843,41 @@ int main(int argc, char* argv[])
         // // definir o sistema de coordenadas da câmera.  Veja slides 2-14, 184-190 e 236-242 do documento Aula_08_Sistemas_de_Coordenadas.pdf.
         // glm::mat4 view = Matrix_Camera_View(camera_position_c, camera_view_vector, camera_up_vector);
 
-        glm::vec3 posc = crash.getPosition();
-        glm::vec3 forwardc = crash.getForwardVector();
-        if (g_CameraFirstPerson)
+        glm::mat4 view;
+        if (start_timer > 0.0f)
         {
-            camera.UpdateFirstPerson(posc, forwardc);
+            const float intro_duration = 3.0f;
+            float t = 1.0f - glm::clamp(start_timer / intro_duration, 0.0f, 1.0f);
+
+            glm::vec3 p0(-4.0f,  2.5f, 1.0f);
+            glm::vec3 p1(-2.0f,   2.0f, -2.0f);
+            glm::vec3 p2( 2.0f,   2.0f, -2.0f);
+            glm::vec3 p3(4.0f,   2.5f, 1.0f);
+
+            glm::vec3 cameraIntroPos = EvaluateCubicBezier(p0, p1, p2, p3, t);
+            glm::vec3 lookAtCenter = (crash.getPosition() + cortex.getPosition()) * 0.5f + glm::vec3(0.0f, 0.35f, 0.0f);
+            glm::vec3 viewVector = lookAtCenter - cameraIntroPos;
+
+            view = Matrix_Camera_View(glm::vec4(cameraIntroPos, 1.0f), glm::vec4(viewVector, 0.0f), glm::vec4(0.0f, 1.0f, 0.0f, 0.0f));
         }
         else
         {
-            camera.UpdateFollow(posc, forwardc);
+            glm::vec3 posc = crash.getPosition();
+            glm::vec3 forwardc = crash.getForwardVector();
+            if (g_CameraMode == 1)
+            {
+                camera.UpdateFirstPerson(posc, forwardc);
+            }
+            else if (g_CameraMode == 2)
+            {
+                camera.UpdateFrontView(posc, forwardc);
+            }
+            else
+            {
+                camera.UpdateFollow(posc, forwardc);
+            }
+            view = camera.GetViewMatrix();
         }
-
-        glm::mat4 view = camera.GetViewMatrix();
 
         // Agora computamos a matriz de Projeção.
         glm::mat4 projection;
@@ -823,11 +916,13 @@ int main(int argc, char* argv[])
         glUniformMatrix4fv(g_view_uniform       , 1 , GL_FALSE , glm::value_ptr(view));
         glUniformMatrix4fv(g_projection_uniform , 1 , GL_FALSE , glm::value_ptr(projection));
 
-        // Desenhamos a pista e o crash
+        // Desenhamos a pista, o crash e os crates de pergunta
         trackMap.Draw();
         cortex.draw();
         crash.draw();
-        box.draw();
+        for (auto& crate : boxes) {
+            crate.draw();
+        }
 
         if (debug == true){
             DrawDebugAABB(crashBox);
@@ -1226,7 +1321,7 @@ void BuildTrianglesAndAddToVirtualScene(ObjModel* model)
         size_t first_index = indices.size();
         size_t num_triangles = model->shapes[shape].mesh.num_face_vertices.size();
 
-        const float minval = std::numeric_limits<float>::min();
+        const float minval = std::numeric_limits<float>::lowest();
         const float maxval = std::numeric_limits<float>::max();
 
         glm::vec3 bbox_min = glm::vec3(maxval,maxval,maxval);
@@ -1740,13 +1835,19 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mod)
     // Se o usuário apertar a tecla 1, entramos no modo first-person.
     if (key == GLFW_KEY_1 && action == GLFW_PRESS)
     {
-        g_CameraFirstPerson = true;
+        g_CameraMode = 1;
     }
 
     // Se o usuário apertar a tecla 2, retornamos ao modo de câmera de perseguição.
     if (key == GLFW_KEY_2 && action == GLFW_PRESS)
     {
-        g_CameraFirstPerson = false;
+        g_CameraMode = 0;
+    }
+
+    // Se o usuário apertar a tecla 3, utilizamos o modo frontal.
+    if (key == GLFW_KEY_3 && action == GLFW_PRESS)
+    {
+        g_CameraMode = 2;
     }
 
     // Se o usuário apertar a tecla R, recarregamos os shaders dos arquivos "shader_fragment.glsl" e "shader_vertex.glsl".

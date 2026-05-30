@@ -37,6 +37,14 @@ public:
     // Smooth floor detection: casts a ray down from `world_pos` to find the highest floor triangle
     bool GetFloorHeight(const glm::vec3& world_pos, float& outHeight) const;
 
+    // Prevent movement through steep non-climbable walls
+    bool ResolveWallCollision(const glm::vec3& oldPos, glm::vec3& newPos, float radius = 0.12f) const;
+
+    // Tweakable parameter: minimum dot(normal, up) to consider a triangle walkable.
+    // Higher values make fewer surfaces walkable. Default is permissive (0.15).
+    void SetWalkableSlopeDot(float dot);
+    float GetWalkableSlopeDot() const;
+
 private:
     glm::mat4 modelMatrix;
     glm::vec3 position;
@@ -45,6 +53,7 @@ private:
     std::vector<MapShape> shapes;
     std::vector<Triangle> triangles; // For ray-casting floor detection
     std::map<std::string, GLuint> loadedTextures;
+    float walkable_floor_dot = 0.15f;
 
     void LoadTexture(const std::string& filepath, GLuint& texture_id);
     void BuildTriangles(tinyobj::attrib_t& attrib, std::vector<tinyobj::shape_t>& tiny_shapes, std::vector<tinyobj::material_t>& materials, const std::string& base_path);
