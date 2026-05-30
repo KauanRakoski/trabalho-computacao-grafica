@@ -432,7 +432,7 @@ int main(int argc, char* argv[])
     // (we need checkpoint positions as the reference path). See below.
 
     Entity cortex(std::vector<std::string>{"mesh_1001", "mesh_2"}, std::vector<int>{CORTEX, DEADINATOR});
-    cortex.setPosition(0.0f, 1.0f, 0.0f);
+    cortex.setPosition(0, 1.43635, 0);
     cortex.setScale(0.0000005f, 0.0000005f, 0.0000005f);
 
     // ============================
@@ -571,7 +571,7 @@ int main(int argc, char* argv[])
         pathIn.close();
     }
     float cortex_timer = 0.0f;
-    float start_timer = 3.0f;
+    float start_timer = 10.0f;
 
     struct RacerRank {
         int id;
@@ -604,7 +604,7 @@ int main(int argc, char* argv[])
         if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) gas_input = 1.0f;
         if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) gas_input = -1.0f;
 
-        /*
+        
         static bool last_x_state = false;
         bool current_x_state = (glfwGetKey(window, GLFW_KEY_X) == GLFW_PRESS);
         if (current_x_state && !last_x_state) {
@@ -612,7 +612,7 @@ int main(int argc, char* argv[])
             printf("COORDS: glm::vec3(%f, %f, %f)\n", debugPos.x, debugPos.y, debugPos.z);
         }
         last_x_state = current_x_state;
-        */
+
 
         // leitura do controle
         int joystickId = GLFW_JOYSTICK_1;
@@ -846,7 +846,7 @@ int main(int argc, char* argv[])
         glm::mat4 view;
         if (start_timer > 0.0f)
         {
-            const float intro_duration = 3.0f;
+            const float intro_duration = 10.0f;
             float t = 1.0f - glm::clamp(start_timer / intro_duration, 0.0f, 1.0f);
 
             glm::vec3 p0(-4.0f,  2.5f, 1.0f);
