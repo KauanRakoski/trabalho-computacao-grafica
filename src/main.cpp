@@ -182,7 +182,7 @@ void PrintObjModelInfo(ObjModel*); // Função para debugging
 void TextRendering_Init();
 float TextRendering_LineHeight(GLFWwindow* window);
 float TextRendering_CharWidth(GLFWwindow* window);
-void TextRendering_PrintString(GLFWwindow* window, const std::string &str, float x, float y, float scale = 1.0f);
+void TextRendering_PrintString(GLFWwindow* window, const std::string &str, float x, float y, float scale = 1.0f, glm::vec3 color = glm::vec3(0.0f));
 void TextRendering_PrintMatrix(GLFWwindow* window, glm::mat4 M, float x, float y, float scale = 1.0f);
 void TextRendering_PrintVector(GLFWwindow* window, glm::vec4 v, float x, float y, float scale = 1.0f);
 void TextRendering_PrintMatrixVectorProduct(GLFWwindow* window, glm::mat4 M, glm::vec4 v, float x, float y, float scale = 1.0f);
@@ -195,6 +195,7 @@ void TextRendering_ShowModelViewProjection(GLFWwindow* window, glm::mat4 project
 void TextRendering_ShowEulerAngles(GLFWwindow* window);
 void TextRendering_ShowProjection(GLFWwindow* window);
 void TextRendering_ShowFramesPerSecond(GLFWwindow* window);
+void TextRendering_ShowRaceTimer(GLFWwindow* window, float race_time);
 
 // Funções callback para comunicação com o sistema operacional e interação do
 // usuário. Veja mais comentários nas definições das mesmas, abaixo.
@@ -569,6 +570,7 @@ int main(int argc, char* argv[])
     }
     float cortex_timer = 0.0f;
     float start_timer = 3.0f;
+    float race_timer = 0.0f;
 
     struct RacerRank {
         int id;
@@ -642,6 +644,10 @@ int main(int argc, char* argv[])
             start_timer -= g_DeltaTime;
             gas_input = 0.0f;
             speed = 0.0f;
+        }
+
+        if (start_timer <= 0.0f) {
+            race_timer += g_DeltaTime;
         }
 
         if (gas_input != 0.0f) {
@@ -963,7 +969,7 @@ int main(int argc, char* argv[])
 
         // Mostra os quadros por segundo da tela (FPS) depois de desenhar tudo
         TextRendering_ShowFramesPerSecond(window);
-
+        TextRendering_ShowRaceTimer(window, race_timer);
 
         // O framebuffer onde OpenGL executa as operações de renderização não
         // é o mesmo que está sendo mostrado para o usuário, caso contrário
@@ -1911,6 +1917,16 @@ void TextRendering_ShowProjection(GLFWwindow* window)
         TextRendering_PrintString(window, "Perspective", 1.0f-13*charwidth, -1.0f+2*lineheight/10, 1.0f);
     else
         TextRendering_PrintString(window, "Orthographic", 1.0f-13*charwidth, -1.0f+2*lineheight/10, 1.0f);
+}
+
+void TextRendering_ShowRaceTimer(GLFWwindow* window, float race_time)
+{
+    float lineheight = TextRendering_LineHeight(window);
+    int minutes = (int)(race_time / 60.0f);
+    float seconds = race_time - minutes * 60.0f;
+    char buffer[32];
+    snprintf(buffer, sizeof(buffer), "TIME %02d:%05.2f", minutes, seconds);
+    TextRendering_PrintString(window, buffer, -1.0f + 0.02f, 1.0f - lineheight - 0.02f, 2.0f, glm::vec3(1.0f, 0.55f, 0.0f));
 }
 
 // Escrevemos na tela o número de quadros renderizados por segundo (frames per

@@ -6,6 +6,7 @@
 #include <GLFW/glfw3.h>
 
 #include <glm/mat4x4.hpp>
+#include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
 
 #include "utils.h"
@@ -27,11 +28,12 @@ const GLchar* const textvertexshader_source = ""
 const GLchar* const textfragmentshader_source = ""
 "#version 330\n"
 "uniform sampler2D tex;\n"
+"uniform vec3 textColor;\n"
 "in vec2 texCoords;\n"
 "out vec4 fragColor;\n"
 "void main()\n"
 "{\n"
-    "fragColor = vec4(0, 0, 0, texture(tex, texCoords).r);\n"
+    "fragColor = vec4(textColor, texture(tex, texCoords).r);\n"
 "}\n"
 "\0";
 
@@ -86,6 +88,7 @@ GLuint textVAO;
 GLuint textVBO;
 GLuint textprogram_id;
 GLuint texttexture_id;
+GLint textcolor_uniform;
 
 void TextRendering_Init()
 {
@@ -117,6 +120,9 @@ void TextRendering_Init()
     texttex_uniform = glGetUniformLocation(textprogram_id, "tex");
     glCheckError();
 
+    textcolor_uniform = glGetUniformLocation(textprogram_id, "textColor");
+    glCheckError();
+
     GLuint textureunit = 31;
     glActiveTexture(GL_TEXTURE0 + textureunit);
     glBindTexture(GL_TEXTURE_2D, texttexture_id);
@@ -134,6 +140,9 @@ void TextRendering_Init()
 
     glUseProgram(textprogram_id);
     glUniform1i(texttex_uniform, textureunit);
+    if (textcolor_uniform != -1) {
+        glUniform3f(textcolor_uniform, 0.0f, 0.0f, 0.0f);
+    }
     glUseProgram(0);
     glCheckError();
 
@@ -144,7 +153,7 @@ void TextRendering_Init()
 
 float textscale = 1.5f;
 
-void TextRendering_PrintString(GLFWwindow* window, const std::string &str, float x, float y, float scale = 1.0f)
+void TextRendering_PrintString(GLFWwindow* window, const std::string &str, float x, float y, float scale = 1.0f, glm::vec3 color = glm::vec3(0.0f))
 {
     scale *= textscale;
     int width, height;
@@ -197,6 +206,9 @@ void TextRendering_PrintString(GLFWwindow* window, const std::string &str, float
         glBindBuffer(GL_ARRAY_BUFFER, 0);
 
         glUseProgram(textprogram_id);
+        if (textcolor_uniform != -1) {
+            glUniform3fv(textcolor_uniform, 1, &color[0]);
+        }
         glBindVertexArray(textVAO);
 
         glDrawArrays(GL_TRIANGLES, 0, 6);
