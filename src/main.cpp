@@ -609,22 +609,41 @@ int main(int argc, char* argv[])
         // Atualizar posição do Cortex com interpolação
         if (!cortexPath.empty() && !has_winner) {
             if (start_timer <= 0.0f) {
-                cortex_timer += g_DeltaTime;
+                float cortex_speed_multiplier = 0.95f; 
+                
+                float dist_to_player = glm::distance(crash.getPosition(), cortex.getPosition());
+                
+                if (dist_to_player > 15.0f) {
+                    bool player_is_ahead = (crash.current_lap > cortex.current_lap) || 
+                                           (crash.current_lap == cortex.current_lap && crash.current_checkpoint >= cortex.current_checkpoint);
+                    
+                    if (player_is_ahead) {
+                        cortex_speed_multiplier = 1.15f; 
+                    } else {
+                        cortex_speed_multiplier = 0.70f; 
+                    }
+                }
+                
+                cortex_timer += g_DeltaTime * cortex_speed_multiplier;
             }
             
             // Cada ponto foi salvo a 0.1s
             float exact_index = cortex_timer / 0.1f;
             int idx1 = (int)exact_index;
             
-            // Se o Cortex chegou ao final, loop (zerando o timer)
+            // Se o Cortex chegou ao final, loop mantendo o resto do tempo
             if (idx1 >= cortexPath.size() - 1) {
-                cortex_timer = 0.0f;
-                idx1 = 0;
+                cortex_timer -= (cortexPath.size() - 1) * 0.1f;
+                if (cortex_timer < 0.0f) cortex_timer = 0.0f;
+                
+                exact_index = cortex_timer / 0.1f;
+                idx1 = (int)exact_index;
             }
+            
             int idx2 = idx1 + 1;
             if (idx2 >= cortexPath.size()) idx2 = idx1;
             
-            float t = exact_index - (float)idx1; // Parte fracionária (0.0 a 1.0)
+            float t = exact_index - (float)idx1; // Parte fracionária garantida (0.0 a 1.0)
             
             glm::vec3 pos1 = cortexPath[idx1].position;
             glm::vec3 pos2 = cortexPath[idx2].position;
