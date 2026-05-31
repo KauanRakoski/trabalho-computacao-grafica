@@ -31,7 +31,8 @@ public:
     float speed = 0.0f;
     bool finished = false;
     float finish_time = 0.0f;
-
+    bool is_going_rear;
+    
     Entity(std::string name, int id);
     Entity(std::vector<std::string> names, std::vector<int> ids);
     virtual ~Entity() = default;

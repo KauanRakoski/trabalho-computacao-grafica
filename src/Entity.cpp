@@ -14,6 +14,7 @@ Entity::Entity(std::string name, int id) {
     global_rotation = glm::vec3(0.0f, 0.0f, 0.0f);
     scale = glm::vec3(1.0f, 1.0f, 1.0f);
     base_facing_y = 0.0f;
+    is_going_rear = false;
     
     current_lap = 0;
     current_checkpoint = 0;

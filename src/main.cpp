@@ -352,6 +352,7 @@ int main(int argc, char* argv[])
     // para renderização. Veja slides 180-200 do documento Aula_03_Rendering_Pipeline_Grafico.pdf.
     //
     LoadShadersFromFiles();
+    initParticleSystem();
 
     // Carregamos duas imagens para serem utilizadas como textura
     LoadTextureImage("../../data/red_brick_diff_1k.jpg");      // TextureImage0
@@ -425,14 +426,14 @@ int main(int argc, char* argv[])
     trackMap.SetWalkableSlopeDot(0.0f); // Configura o parâmetro de inclinação máxima para superfícies transitáveis (se > 0 colide no meio da pista)
     
     Entity crash(std::vector<std::string>{"mesh_1", "mesh_1.001"}, std::vector<int>{CRASH, TRIKEE});    
-    crash.setPosition(0.5f, 1.0f, 0.0f);
+    crash.setPosition(-0.159368, -1.555802, 10.947786);
     crash.setScale(0.00005f, 0.00005f, 0.00005f);
 
     // NOTE: crate instances will be created after checkpoints are defined
     // (we need checkpoint positions as the reference path). See below.
 
-    Entity cortex(std::vector<std::string>{"mesh_1001", "mesh_2"}, std::vector<int>{CORTEX, DEADINATOR});
-    cortex.setPosition(0, 1.43635, 0);
+    Entity cortex(std::vector<std::string>{"mesh_2", "mesh_1001"}, std::vector<int>{CORTEX, DEADINATOR});
+    cortex.setPosition(0.543643, -1.558233, 10.979784);
     cortex.setScale(0.0000005f, 0.0000005f, 0.0000005f);
 
     // ============================
@@ -440,21 +441,42 @@ int main(int argc, char* argv[])
     // ============================
     std::vector<Checkpoint> checkpoints;
     
-    Checkpoint c1 = Checkpoint(1, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(25.0f, 25.0f, 25.0f)); // Largada exata onde os jogadores nascem
-    Checkpoint c2 = Checkpoint(2, glm::vec3(-0.702098f, -5.295282f, -36.683403f), glm::vec3(15.0f, 15.0f, 15.0f));
-    Checkpoint c3 = Checkpoint(3, glm::vec3(22.442646f, 0.615550f, -41.123039f), glm::vec3(15.0f, 15.0f, 15.0f));
-    Checkpoint c4 = Checkpoint(4, glm::vec3(23.395777f, 0.241958f, -1.247187f), glm::vec3(15.0f, 15.0f, 15.0f));
-    Checkpoint c5 = Checkpoint(5, glm::vec3(0.155395f, -1.776799f, 23.466692f), glm::vec3(15.0f, 15.0f, 15.0f));
-    
-    checkpoints.push_back(c1);
-    checkpoints.push_back(c2);
-    checkpoints.push_back(c3);
-    checkpoints.push_back(c4);
-    checkpoints.push_back(c5);
+    std::vector<glm::vec3> cp_positions = {
+        glm::vec3(-0.159368, -1.145981, 7.512655),
+        glm::vec3(-0.159368, 1.534816, -2.576056),
+        glm::vec3(-0.652994, -0.274171, -11.185637),
+        glm::vec3(-5.614402, -1.548445, -15.830395),
+        glm::vec3(-8.445133, -2.881632, -20.672270),
+        glm::vec3(-5.574906, -4.205231, -25.641459),
+        glm::vec3(-1.541140, -4.968163, -31.212091),
+        glm::vec3(-0.622631, -5.274470, -37.221237),
+        glm::vec3(-0.555140, -4.715728, -44.633133),
+        glm::vec3(0.282537, -4.465611, -51.500401),
+        glm::vec3(7.723723, -2.624157, -51.308002),
+        glm::vec3(21.065456, -0.703028, -51.005589),
+        glm::vec3(22.454872, 0.656945, -42.626926),
+        glm::vec3(21.900702, 1.046294, -18.616089),
+        glm::vec3(24.374161, 0.255308, -8.102866),
+        glm::vec3(21.918940, -0.462381, 1.451543),
+        glm::vec3(16.390623, -2.225854, 7.958159),
+        glm::vec3(9.909691, -2.397829, 16.607321),
+        glm::vec3(2.631121, -1.965477, 23.674143),
+        glm::vec3(-0.248590, -1.505597, 17.625603)
+    };
+
+    for (size_t i = 0; i < cp_positions.size(); ++i) {
+        checkpoints.push_back(Checkpoint(i + 1, cp_positions[i], glm::vec3(15.0f, 15.0f, 15.0f)));
+    }
 
     const int NUM_LAPS_TO_WIN = 2;
     bool has_winner = false;
 
+    // ============================
+    //  CODE FOR CREATING EXHAUST SMOKE
+    // ============================
+    std::vector<Particle> particles(500);
+    std::vector<Particle> cortexSmoke(500);
+    
     // ============================
     //  SPAWN QUESTION-CRATES ALONG TRACK PATH (7-12 instances)
     // ============================
@@ -551,11 +573,12 @@ int main(int argc, char* argv[])
     float brake = 5.0f;
     float rot_speed = 3.0f;
 
-    std::ofstream pathLog("../../data/crash_path.txt", std::ios::app); // append mode so we don't wipe it unless necessary, but maybe we shouldn't append. Wait, we are racing.
-    // Actually, we shouldn't wipe the crash path if we want to read it!
-    // I'll disable logging for now so we don't overwrite the path!
-    // std::ofstream pathLog("../../data/crash_path.txt");
-    // float logTimer = 0.0f;
+    bool record_path = false; // Altere para true para gravar um novo caminho em crash_path.txt
+    std::ofstream pathLog;
+    if (record_path) {
+        pathLog.open("../../data/crash_path.txt");
+    }
+    float logTimer = 0.0f;
 
     struct PathPoint {
         glm::vec3 position;
@@ -651,7 +674,20 @@ int main(int argc, char* argv[])
         }
         
         if (gas_input != 0.0f) {
+            bool is_going_rear = true;
+
+            if (gas_input < 0) is_going_rear = true;
+        
             speed += acceleration * gas_input * g_DeltaTime;
+
+            int numParticles = std::max(1, (int)(std::abs(speed) * g_DeltaTime / 0.015f));
+            glm::vec3 forwardVec = crash.getForwardVector();
+            glm::vec3 basePos = crash.getPosition() + glm::vec3(0, 0.02f, 0.0f);
+            
+            for(int i = 0; i < numParticles; i++) {
+                glm::vec3 offset = forwardVec * (speed * g_DeltaTime * ((float)i / numParticles));
+                spawnParticle(basePos + offset, particles, forwardVec, is_going_rear);
+            }
         } else {
             if (speed > 0.0f) {
                 speed -= brake * g_DeltaTime;
@@ -686,6 +722,7 @@ int main(int argc, char* argv[])
 
         // Atualizar posição do Cortex com interpolação
         if (!cortexPath.empty() && !has_winner) {
+            glm::vec3 cortexPrevPos = cortex.getPosition();
             if (start_timer <= 0.0f) {
                 float cortex_speed_multiplier = 0.95f; 
                 
@@ -703,9 +740,8 @@ int main(int argc, char* argv[])
                 }
                 
                 cortex_timer += g_DeltaTime * cortex_speed_multiplier;
-            }
-            
-            // Cada ponto foi salvo a 0.1s
+
+                 // Cada ponto foi salvo a 0.1s
             float exact_index = cortex_timer / 0.1f;
             int idx1 = (int)exact_index;
             
@@ -733,6 +769,32 @@ int main(int argc, char* argv[])
             
             cortex.setPosition(newPos.x, newPos.y, newPos.z);
             cortex.setLocalRotation(newRot.x, newRot.y, newRot.z);
+            }
+            
+            if (start_timer <= 0.0f) {
+                glm::vec3 cortexForward = cortex.getForwardVector();
+                float cortexDist = glm::distance(cortexPrevPos, cortex.getPosition());
+                int numCortexParticles = std::max(1, (int)(cortexDist / 0.015f));
+                glm::vec3 cortexBasePos = cortexPrevPos + glm::vec3(0, 0.02f, 0.0f) - cortexForward * 0.35f;
+                
+                for(int i = 0; i < numCortexParticles; i++) {
+                    spawnParticle(cortexBasePos, cortexSmoke, cortexForward, false);
+                }
+            }
+           
+        }
+
+        // =========================
+        //  GRAVAÇÃO DO CAMINHO
+        // =========================
+        if (record_path && start_timer <= 0.0f && !has_winner) {
+            logTimer += g_DeltaTime;
+            if (logTimer >= 0.1f) {
+                glm::vec3 p = crash.getPosition();
+                glm::vec3 r = crash.getLocalRotation();
+                pathLog << p.x << " " << p.y << " " << p.z << " " << r.x << " " << r.y << " " << r.z << "\n";
+                logTimer -= 0.1f;
+            }
         }
 
         // =========================
@@ -849,10 +911,10 @@ int main(int argc, char* argv[])
             const float intro_duration = 10.0f;
             float t = 1.0f - glm::clamp(start_timer / intro_duration, 0.0f, 1.0f);
 
-            glm::vec3 p0(-4.0f,  2.5f, 1.0f);
-            glm::vec3 p1(-2.0f,   2.0f, -2.0f);
-            glm::vec3 p2( 2.0f,   2.0f, -2.0f);
-            glm::vec3 p3(4.0f,   2.5f, 1.0f);
+            glm::vec3 p0(-1.0f,  -0.5f, 10.0f);
+            glm::vec3 p1(-2.0f,   -1.0f, 9.5f);
+            glm::vec3 p2( 2.0f,   -1.0f, 9.5f);
+            glm::vec3 p3(1,   -0.5f, 10.0f);
 
             glm::vec3 cameraIntroPos = EvaluateCubicBezier(p0, p1, p2, p3, t);
             glm::vec3 lookAtCenter = (crash.getPosition() + cortex.getPosition()) * 0.5f + glm::vec3(0.0f, 0.35f, 0.0f);
@@ -923,6 +985,12 @@ int main(int argc, char* argv[])
         for (auto& crate : boxes) {
             crate.draw();
         }
+
+        updateParticles(particles, g_DeltaTime);
+        updateParticles(cortexSmoke, g_DeltaTime);
+
+        drawParticles(cortexSmoke, view, projection);
+        drawParticles(particles, view, projection);
 
         if (debug == true){
             DrawDebugAABB(crashBox);
@@ -1025,7 +1093,7 @@ int main(int argc, char* argv[])
     }
 
     // Fechar arquivo de log
-    pathLog.close();
+    if (pathLog.is_open()) pathLog.close();
 
     // Finalizamos o uso dos recursos do sistema operacional
     glfwTerminate();
