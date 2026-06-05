@@ -6,6 +6,7 @@
 #include <glm/gtc/type_ptr.hpp>
 #include "matrices.h"
 #include "utils.h"
+#include <unordered_set>
 
 // Note: stbi is already implemented in main or stb_image.cpp
 #include <stb_image.h>
@@ -125,6 +126,7 @@ void TrackMap::BuildTriangles(tinyobj::attrib_t& attrib, std::vector<tinyobj::sh
     };
 
     for (size_t shape = 0; shape < tiny_shapes.size(); ++shape) {
+        std::unordered_set<int> skippedMaterialIds;
         const auto& tiny_shape = tiny_shapes[shape];
         std::map<int, ShapeGroup> groups;
         size_t num_triangles = tiny_shape.mesh.num_face_vertices.size();
@@ -133,6 +135,25 @@ void TrackMap::BuildTriangles(tinyobj::attrib_t& attrib, std::vector<tinyobj::sh
             int mat_id = -1;
             if (triangle < tiny_shape.mesh.material_ids.size()) {
                 mat_id = tiny_shape.mesh.material_ids[triangle];
+            }
+
+            // Decide whether to skip this material (specific light meshes that are just black sprites)
+            if (mat_id >= 0 && mat_id < static_cast<int>(materials.size())) {
+                const auto &mat = materials[mat_id];
+                std::string matname = mat.name;
+                std::string difffile = mat.diffuse_texname;
+                // Skip materials named or textured like the problematic in-window 'lit_003' lights.
+                if ((matname.rfind("lit_003", 0) == 0) || (difffile.find("lit_003") != std::string::npos)) {
+                    skippedMaterialIds.insert(mat_id);
+                }
+            }
+
+            if (skippedMaterialIds.find(mat_id) != skippedMaterialIds.end()) {
+                // Don't build geometry or collision triangles for these shapes.
+                // Advance the index pointer in the tinyobj arrays by consuming their indices.
+                size_t vertsInFace = tiny_shape.mesh.num_face_vertices[triangle];
+                (void)vertsInFace; // explicit ignore; the loop below expects 3 vertices so we just continue.
+                continue;
             }
 
             auto& group = groups[mat_id];

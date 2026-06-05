@@ -424,17 +424,17 @@ int main(int argc, char* argv[])
     #define CORTEX_MUGSHOT 10
     
     TrackMap trackMap("../../data/map/Once Upon A Tire.obj", "../../data/map/", glm::vec3(0.0f, -1.0f, 0.0f), 0.05f);
-    trackMap.SetWalkableSlopeDot(0.0f); // Configura o parâmetro de inclinação máxima para superfícies transitáveis (se > 0 colide no meio da pista)
+    trackMap.SetWalkableSlopeDot(0.00f); // Configura o parâmetro de inclinação máxima para superfícies transitáveis (se > 0 colide no meio da pista)
     
     Entity crash(std::vector<std::string>{"mesh_1", "mesh_1.001"}, std::vector<int>{CRASH, TRIKEE});    
-    crash.setPosition(-0.159368, -1.555802, 10.947786);
+    crash.setPosition(-0.159368f, -1.555802f, 10.947786f);
     crash.setScale(0.00005f, 0.00005f, 0.00005f);
 
     // NOTE: crate instances will be created after checkpoints are defined
     // (we need checkpoint positions as the reference path). See below.
 
     Entity cortex(std::vector<std::string>{"mesh_2", "mesh_1001"}, std::vector<int>{CORTEX, DEADINATOR});
-    cortex.setPosition(0.543643, -1.558233, 10.979784);
+    cortex.setPosition(0.543643f, -1.558233f, 10.979784f);
     cortex.setScale(0.0000005f, 0.0000005f, 0.0000005f);
 
     // ============================
@@ -466,7 +466,7 @@ int main(int argc, char* argv[])
     };
 
     for (size_t i = 0; i < cp_positions.size(); ++i) {
-        checkpoints.push_back(Checkpoint(i + 1, cp_positions[i], glm::vec3(15.0f, 15.0f, 15.0f)));
+        checkpoints.push_back(Checkpoint(static_cast<int>(i) + 1, cp_positions[i], glm::vec3(15.0f, 15.0f, 15.0f)));
     }
 
     const int NUM_LAPS_TO_WIN = 2;
@@ -568,7 +568,6 @@ int main(int argc, char* argv[])
     //  VARIÁVEIS DE CONTROLE (GENERIC USB)
     // ============================
     GLFWgamepadstate contollerState;
-
     float speed = 0.0f;
     float acceleration = 3.0f;
     float brake = 5.0f;
@@ -917,10 +916,10 @@ int main(int argc, char* argv[])
             const float intro_duration = 10.0f;
             float t = 1.0f - glm::clamp(start_timer / intro_duration, 0.0f, 1.0f);
 
-            glm::vec3 p0(-1.0f,  -0.5f, 10.0f);
-            glm::vec3 p1(-2.0f,   -1.0f, 9.5f);
-            glm::vec3 p2( 2.0f,   -1.0f, 9.5f);
-            glm::vec3 p3(1,   -0.5f, 10.0f);
+            glm::vec3 p0(-1.0f, -0.5f, 10.0f);
+            glm::vec3 p1(-2.0f, -1.0f, 9.5f);
+            glm::vec3 p2( 2.0f, -1.0f, 9.5f);
+            glm::vec3 p3( 1.0f, -0.5f, 10.0f);
 
             glm::vec3 cameraIntroPos = EvaluateCubicBezier(p0, p1, p2, p3, t);
             glm::vec3 lookAtCenter = (crash.getPosition() + cortex.getPosition()) * 0.5f + glm::vec3(0.0f, 0.35f, 0.0f);
@@ -959,7 +958,7 @@ int main(int argc, char* argv[])
         {
             // Projeção Perspectiva.
             // Para definição do field of view (FOV), veja slides 205-215 do documento Aula_09_Projecoes.pdf.
-            float field_of_view = 3.141592 / 3.0f;
+            float field_of_view = 3.141592f / 3.0f;
             projection = Matrix_Perspective(field_of_view, g_ScreenRatio, nearplane, farplane);
         }
         else
@@ -1019,7 +1018,7 @@ int main(int argc, char* argv[])
                 score = 1000000.0f - carro->finish_time;
             } else {
                 int next_cp_id = carro->current_checkpoint + 1;
-                if (next_cp_id > checkpoints.size()) next_cp_id = 1;
+                if (next_cp_id > static_cast<int>(checkpoints.size())) next_cp_id = 1;
                 
                 glm::vec3 next_cp_pos = checkpoints[next_cp_id - 1].position;
                 float dist = glm::distance(carro->getPosition(), next_cp_pos);
@@ -1028,7 +1027,7 @@ int main(int argc, char* argv[])
             }
             
             RacerRank r;
-            r.id = i;
+            r.id = static_cast<int>(i);
             r.shader_id = (i == 0) ? CRASH_MUGSHOT : CORTEX_MUGSHOT; 
             r.score = score;
             ranks.push_back(r);
@@ -1051,7 +1050,7 @@ int main(int argc, char* argv[])
 
         float start_y = 500.0f; // Topo esquerdo
         for (size_t i = 0; i < ranks.size(); i++) {
-            int position = i + 1;
+            int position = static_cast<int>(i) + 1;
             
             // IMPORTANTE: TextRendering muda o glUseProgram, então precisamos reativar o nosso shader 3D a cada volta do loop
             glUseProgram(g_GpuProgramID); 
@@ -1172,7 +1171,7 @@ void DrawVirtualObject(const char* object_name)
     // http://docs.gl/gl3/glDrawElements.
     glDrawElements(
         g_VirtualScene[object_name].rendering_mode,
-        g_VirtualScene[object_name].num_indices,
+        static_cast<GLsizei>(g_VirtualScene[object_name].num_indices),
         GL_UNSIGNED_INT,
         (void*)(g_VirtualScene[object_name].first_index * sizeof(GLuint))
     );
@@ -1370,7 +1369,7 @@ void ComputeNormals(ObjModel* model)
                 {
                     tinyobj::index_t idx = model->shapes[shape].mesh.indices[3*triangle + vertex];
                     model->shapes[shape].mesh.indices[3*triangle + vertex].normal_index =
-                        normal_indices[ idx.vertex_index ];
+                        static_cast<int>(normal_indices[ idx.vertex_index ]);
                 }
             }
         }
@@ -1409,7 +1408,7 @@ void BuildTrianglesAndAddToVirtualScene(ObjModel* model)
             {
                 tinyobj::index_t idx = model->shapes[shape].mesh.indices[3*triangle + vertex];
 
-                indices.push_back(first_index + 3*triangle + vertex);
+                indices.push_back(static_cast<GLuint>(first_index + 3*triangle + vertex));
 
                 const float vx = model->attrib.vertices[3*idx.vertex_index + 0];
                 const float vy = model->attrib.vertices[3*idx.vertex_index + 1];
@@ -1561,7 +1560,7 @@ void LoadShader(const char* filename, GLuint shader_id)
     try {
         file.exceptions(std::ifstream::failbit);
         file.open(filename);
-    } catch ( std::exception& e ) {
+    } catch ( const std::exception& ) {
         fprintf(stderr, "ERROR: Cannot open file \"%s\".\n", filename);
         std::exit(EXIT_FAILURE);
     }
@@ -1763,12 +1762,12 @@ void CursorPosCallback(GLFWwindow* window, double xpos, double ypos)
     if (g_LeftMouseButtonPressed)
     {
         // Deslocamento do cursor do mouse em x e y de coordenadas de tela!
-        float dx = xpos - g_LastCursorPosX;
-        float dy = ypos - g_LastCursorPosY;
+        double dx = xpos - g_LastCursorPosX;
+        double dy = ypos - g_LastCursorPosY;
     
         // Atualizamos parâmetros da câmera com os deslocamentos
-        g_CameraTheta -= 0.01f*dx;
-        g_CameraPhi   += 0.01f*dy;
+        g_CameraTheta -= static_cast<float>(0.01f * dx);
+        g_CameraPhi   += static_cast<float>(0.01f * dy);
     
         // Em coordenadas esféricas, o ângulo phi deve ficar entre -pi/2 e +pi/2.
         float phimax = 3.141592f/2;
@@ -1789,12 +1788,12 @@ void CursorPosCallback(GLFWwindow* window, double xpos, double ypos)
     if (g_RightMouseButtonPressed)
     {
         // Deslocamento do cursor do mouse em x e y de coordenadas de tela!
-        float dx = xpos - g_LastCursorPosX;
-        float dy = ypos - g_LastCursorPosY;
+        double dx = xpos - g_LastCursorPosX;
+        double dy = ypos - g_LastCursorPosY;
     
         // Atualizamos parâmetros da antebraço com os deslocamentos
-        g_ForearmAngleZ -= 0.01f*dx;
-        g_ForearmAngleX += 0.01f*dy;
+        g_ForearmAngleZ -= static_cast<float>(0.01f * dx);
+        g_ForearmAngleX += static_cast<float>(0.01f * dy);
     
         // Atualizamos as variáveis globais para armazenar a posição atual do
         // cursor como sendo a última posição conhecida do cursor.
@@ -1805,12 +1804,12 @@ void CursorPosCallback(GLFWwindow* window, double xpos, double ypos)
     if (g_MiddleMouseButtonPressed)
     {
         // Deslocamento do cursor do mouse em x e y de coordenadas de tela!
-        float dx = xpos - g_LastCursorPosX;
-        float dy = ypos - g_LastCursorPosY;
+        double dx = xpos - g_LastCursorPosX;
+        double dy = ypos - g_LastCursorPosY;
     
         // Atualizamos parâmetros da antebraço com os deslocamentos
-        g_TorsoPositionX += 0.01f*dx;
-        g_TorsoPositionY -= 0.01f*dy;
+        g_TorsoPositionX += static_cast<float>(0.01f * dx);
+        g_TorsoPositionY -= static_cast<float>(0.01f * dy);
     
         // Atualizamos as variáveis globais para armazenar a posição atual do
         // cursor como sendo a última posição conhecida do cursor.
@@ -1824,7 +1823,7 @@ void ScrollCallback(GLFWwindow* window, double xoffset, double yoffset)
 {
     // Atualizamos a distância da câmera para a origem utilizando a
     // movimentação da "rodinha", simulando um ZOOM.
-    g_CameraDistance -= 0.1f*yoffset;
+    g_CameraDistance -= 0.1f * static_cast<float>(yoffset);
 
     // Uma câmera look-at nunca pode estar exatamente "em cima" do ponto para
     // onde ela está olhando, pois isto gera problemas de divisão por zero na
@@ -1860,7 +1859,7 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mod)
     //   Se apertar tecla Z       então g_AngleZ += delta;
     //   Se apertar tecla shift+Z então g_AngleZ -= delta;
 
-    float delta = 3.141592 / 16; // 22.5 graus, em radianos.
+    float delta = 3.141592f / 16.0f; // 22.5 graus, em radianos.
 
     if (key == GLFW_KEY_X && action == GLFW_PRESS)
     {
