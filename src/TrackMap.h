@@ -11,8 +11,9 @@
 
 struct MapShape {
     std::string name;
+    std::string material_name;
     size_t first_index;
-    size_t num_indices;
+    GLsizei num_indices;
     GLuint vao_id;
     AABB bbox;
     GLuint texture_id;

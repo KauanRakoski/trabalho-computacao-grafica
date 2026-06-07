@@ -33,7 +33,13 @@ uniform mat4 projection;
 
 #define DEBUG_AABB 99
 
+// Location types for interior lighting adjustments
+#define LOCATION_OUTSIDE 0
+#define LOCATION_CASTLE_INT 1
+#define LOCATION_DUNGEON 2
+
 uniform int object_id;
+uniform int location_type;
 
 // Parâmetros da axis-aligned bounding box (AABB) do modelo
 uniform vec4 bbox_min;
@@ -209,12 +215,26 @@ void main()
     // Equação de Iluminação com Blinn-Phong simplificado.
     vec3 lightColor = vec3(1.00, 0.95, 0.82);
     float ambientStrength = 0.25;
+    float diffuseStrength = 1.00;
     float specularStrength = 0.40;
     float shininess = 32.0;
 
+    // Adjust lighting based on location
+    if (location_type == LOCATION_CASTLE_INT) {
+        lightColor = vec3(0.85, 0.78, 0.70);
+        ambientStrength = 0.14;
+        diffuseStrength = 0.65;
+        specularStrength = 0.18;
+    } else if (location_type == LOCATION_DUNGEON) {
+        lightColor = vec3(0.70, 0.62, 0.55);
+        ambientStrength = 0.08;
+        diffuseStrength = 0.45;
+        specularStrength = 0.10;
+    }
+
     vec3 ambient = ambientStrength * lightColor;
     float diffuseIntensity = max(n.x * l.x + n.y * l.y + n.z * l.z, 0.0);
-    vec3 diffuse = diffuseIntensity * lightColor;
+    vec3 diffuse = diffuseStrength * diffuseIntensity * lightColor;
 
     vec3 halfway = normalize(l + v);
     float specAngle = max(n.x * halfway.x + n.y * halfway.y + n.z * halfway.z, 0.0);

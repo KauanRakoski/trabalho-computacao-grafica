@@ -16,9 +16,15 @@ extern GLint g_model_uniform;
 extern GLint g_object_id_uniform;
 extern GLint g_bbox_min_uniform;
 extern GLint g_bbox_max_uniform;
+extern GLint g_location_type_uniform;
 
 // The MAP shader ID we will add to shader_fragment.glsl
 #define MAP_SHADER_ID 6
+
+// Location type constants
+#define LOCATION_OUTSIDE 0
+#define LOCATION_CASTLE_INT 1
+#define LOCATION_DUNGEON 2
 
 TrackMap::TrackMap(const char* obj_path, const char* base_path, glm::vec3 position, float scale) 
     : position(position), scale(scale) {
@@ -137,13 +143,14 @@ void TrackMap::BuildTriangles(tinyobj::attrib_t& attrib, std::vector<tinyobj::sh
                 mat_id = tiny_shape.mesh.material_ids[triangle];
             }
 
-            // Decide whether to skip this material (specific light meshes that are just black sprites)
+            // Decide whether to skip this material (specific light meshes that are just black sprites, and arrow signs)
             if (mat_id >= 0 && mat_id < static_cast<int>(materials.size())) {
                 const auto &mat = materials[mat_id];
                 std::string matname = mat.name;
                 std::string difffile = mat.diffuse_texname;
-                // Skip materials named or textured like the problematic in-window 'lit_003' lights.
-                if ((matname.rfind("lit_003", 0) == 0) || (difffile.find("lit_003") != std::string::npos)) {
+                // Skip materials named or textured like the problematic in-window 'lit_003' lights and 'sin_042b_outline' arrow signs.
+                if ((matname.rfind("lit_003", 0) == 0) || (difffile.find("lit_003") != std::string::npos) ||
+                    (matname.rfind("sin_042b_outline", 0) == 0) || (difffile.find("sin_042b_outline") != std::string::npos)) {
                     skippedMaterialIds.insert(mat_id);
                 }
             }
@@ -229,6 +236,7 @@ void TrackMap::BuildTriangles(tinyobj::attrib_t& attrib, std::vector<tinyobj::sh
         for (const auto& group_pair : groups) {
             const auto& group = group_pair.second;
             if (group.indices.empty()) continue;
+            int group_material_id = group_pair.first;
 
             GLuint vertex_array_object_id;
             glGenVertexArrays(1, &vertex_array_object_id);
@@ -236,8 +244,9 @@ void TrackMap::BuildTriangles(tinyobj::attrib_t& attrib, std::vector<tinyobj::sh
 
             MapShape map_shape;
             map_shape.name = tiny_shape.name;
+            map_shape.material_name = (group_material_id >= 0 && group_material_id < static_cast<int>(materials.size())) ? materials[group_material_id].name : std::string();
             map_shape.first_index = 0;
-            map_shape.num_indices = group.indices.size();
+            map_shape.num_indices = static_cast<GLsizei>(group.indices.size());
             map_shape.vao_id = vertex_array_object_id;
             map_shape.bbox.min = group.bbox_min;
             map_shape.bbox.max = group.bbox_max;
@@ -277,6 +286,28 @@ void TrackMap::BuildTriangles(tinyobj::attrib_t& attrib, std::vector<tinyobj::sh
     }
 }
 
+// Helper function to determine location type based on shape name
+static int GetLocationTypeForShape(const std::string& shape_name) {
+    std::string lower_name = shape_name;
+    std::transform(lower_name.begin(), lower_name.end(), lower_name.begin(), ::tolower);
+
+    // Dungeon/vault geometry at the end of the castle
+    if (lower_name.find("vault") != std::string::npos || lower_name.find("col_vault") != std::string::npos) {
+        return LOCATION_DUNGEON;
+    }
+
+    // Inside the castle, but not the dungeon vault.
+    if (lower_name.find("castle_int") != std::string::npos ||
+        lower_name.find("spiral_int") != std::string::npos ||
+        lower_name.find("tower_int") != std::string::npos ||
+        lower_name.find("_int") != std::string::npos) {
+        return LOCATION_CASTLE_INT;
+    }
+
+    // Default to outside.
+    return LOCATION_OUTSIDE;
+}
+
 void TrackMap::Draw() {
     glUniformMatrix4fv(g_model_uniform, 1, GL_FALSE, glm::value_ptr(modelMatrix));
     glUniform1i(g_object_id_uniform, MAP_SHADER_ID);
@@ -286,12 +317,16 @@ void TrackMap::Draw() {
 
         glUniform4f(g_bbox_min_uniform, shape.bbox.min.x, shape.bbox.min.y, shape.bbox.min.z, 1.0f);
         glUniform4f(g_bbox_max_uniform, shape.bbox.max.x, shape.bbox.max.y, shape.bbox.max.z, 1.0f);
+        
+        // Set location type based on shape name
+        int location_type = GetLocationTypeForShape(shape.name);
+        glUniform1i(g_location_type_uniform, location_type);
 
         // Bind the specific texture for this shape to GL_TEXTURE0
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, shape.texture_id);
 
-        glDrawElements(GL_TRIANGLES, shape.num_indices, GL_UNSIGNED_INT, 0);
+        glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(shape.num_indices), GL_UNSIGNED_INT, 0);
     }
     
     glBindVertexArray(0);
