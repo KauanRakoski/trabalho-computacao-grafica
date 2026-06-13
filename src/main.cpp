@@ -472,6 +472,7 @@ int main(int argc, char* argv[])
 
     const int NUM_LAPS_TO_WIN = 2;
     bool has_winner = false;
+    int winner_id = -1; // 0 = player, 1 = Cortex
 
     // ============================
     //  CODE FOR CREATING EXHAUST SMOKE
@@ -670,6 +671,34 @@ int main(int argc, char* argv[])
             start_timer -= g_DeltaTime;
         }
 
+        static bool last_r_state = false;
+        bool current_r_state = (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS);
+        if (current_r_state && !last_r_state && has_winner) {
+            // Reset race state
+            crash.setPosition(-0.159368f, -1.555802f, 10.947786f);
+            crash.setLocalRotation(0.0f, 0.0f, 0.0f);
+            crash.current_checkpoint = 0;
+            crash.current_lap = 0;
+            crash.finished = false;
+            crash.finish_time = 0.0f;
+
+            cortex.setPosition(0.543643f, -1.558233f, 10.979784f);
+            cortex.setLocalRotation(0.0f, 0.0f, 0.0f);
+            cortex.current_checkpoint = 0;
+            cortex.current_lap = 0;
+            cortex.finished = false;
+            cortex.finish_time = 0.0f;
+
+            race_timer = 0.0f;
+            start_timer = 3.0f;
+            has_winner = false;
+            winner_id = -1;
+            crash_velocity_y = 0.0f;
+            speed = 0.0f;
+            cortex_timer = 0.0f;
+        }
+        last_r_state = current_r_state;
+
         if (start_timer > 0.0f || has_winner) {
             gas_input = 0.0f;
             steer_input = 0.0f;
@@ -838,12 +867,15 @@ int main(int argc, char* argv[])
                                     carro->finished = true;
                                     carro->finish_time = (float)glfwGetTime();
                                 }
+                                if (!has_winner) {
+                                    has_winner = true;
+                                    winner_id = static_cast<int>(i);
+                                }
                                 if (carro == &crash) {
                                     printf("🎊 Player venceu!\n");
                                 } else {
                                     printf("🎊 Cortex venceu!\n");
                                 }
-                                has_winner = true;
                             }
 
                             printf(" %s completou a volta %d!\n", nome, carro->current_lap);
@@ -1082,6 +1114,13 @@ int main(int argc, char* argv[])
         // Mostra os quadros por segundo da tela (FPS) depois de desenhar tudo
         TextRendering_ShowFramesPerSecond(window);
         TextRendering_ShowRaceTimer(window, race_timer);
+
+        if (has_winner) {
+            std::string end_text = (winner_id == 0) ? "You win" : "You lose";
+            glm::vec3 end_color = (winner_id == 0) ? glm::vec3(0.0f, 1.0f, 0.0f) : glm::vec3(1.0f, 0.0f, 0.0f);
+            TextRendering_PrintString(window, end_text, -0.16f, 0.3f, 5.0f, end_color);
+            TextRendering_PrintString(window, "press R to repeat", -0.25f, 0.15f, 2.5f, glm::vec3(0.0f, 0.0f, 0.0f));
+        }
 
         // O framebuffer onde OpenGL executa as operações de renderização não
         // é o mesmo que está sendo mostrado para o usuário, caso contrário
