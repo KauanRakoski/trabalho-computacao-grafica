@@ -21,7 +21,7 @@
 
 ### Vídeo - Link
 
-O trabalho se baseará no jogo cuja gameplay pode ser vista em https://youtu.be/gd36DKfgMyM?si=DG_82_qhnTSnQm2V.
+O trabalho se baseará no jogo cuja gameplay pode ser vista em https://www.youtube.com/watch?v=9Jdooruhre0.
 
 ### Vídeo - Timestamp
 
@@ -30,8 +30,8 @@ O trabalho se baseará no jogo cuja gameplay pode ser vista em https://youtu.be/
 >   será a base de comparação para avaliar se o seu trabalho final
 >   conseguiu ou não reproduzir a referência.
 
-- **Timestamp inicial**: <mark>10:45</mark>
-- **Timestamp final**: <mark>11:15</mark>
+- **Timestamp inicial**: <mark>6:30</mark>
+- **Timestamp final**: <mark>7:00</mark>
 
 ### Imagens
 
@@ -39,11 +39,11 @@ O trabalho se baseará no jogo cuja gameplay pode ser vista em https://youtu.be/
 > - Coloque aqui **três imagens** capturadas do vídeo acima, que você
 >   irá usar como ilustração para as explicações que vêm abaixo.
 
-![alt text](cena.png)
+![alt text](imagem_1.png)
 
-![alt text](cena2.png)
+![alt text](imagem_2.png)
 
-![alt text](cena3.png)
+![alt text](imagem_3.png)
 
 ## Especificação textual
 
@@ -71,7 +71,7 @@ Todos os objetos serão iluminados por pontos de iluminação local, simulando t
 Todos os personagens e objetos que fazem parte do cenário da pista (plantas, rochas, caixas e etc) possuirão alguma textura. Dessa forma, buscaremos texturas idênticas ou suficientemente similares para replicar da forma mais próxima possível as cenas originais no jogo em si.
 
 ### Movimentação com curva Bézier cúbica
-Inicialmente considera-se modelar o movimento do Cortex (NPC inimigo) e demais NPCs, caso venham a ser adicionados, através de uma curva Bézier. Caso, por algum motivo, tal sugestão seja abandonada, essas curvas serão utilizadas para modelar o comportamento de coletáveis, como caixas e frutas.
+As curvas de Bézier cúbicas serão utilizadas para movimentação da câmera no início do jogo, sendo um movimento que mostra os carros dos competidores na abertura da corrida.
 
 ### Animações baseadas no tempo ($\Delta t$)
 A física do jogo se baseará em tempo, aplicando efeitos dependentes de uma variável global de tempo, como por exemplo a movimentação dos NPCs ou coletáveis, bem como o sistema de gravidade, que utilizará aceleração baseada em tempo. 
