@@ -553,7 +553,11 @@ int main(int argc, char* argv[])
     ma_engine sound_engine;
     ma_engine_init(NULL, &sound_engine);
 
-    ma_engine_play_sound(&sound_engine, "../../data/sound/once_upon_a_tire_sound.mp3", NULL);
+    //ma_engine_play_sound(&sound_engine, "../../data/sound/once_upon_a_tire_sound.mp3", NULL);
+
+    ma_sound race_music;
+    ma_sound_init_from_file(&sound_engine, "../../data/sound/once_upon_a_tire_sound.mp3", 0, NULL, NULL, &race_music);
+    ma_sound_start(&race_music);
 
     // ============================
     //  CONSTANTES GRAVITACIONAIS -- DEFINIR EM PHYSICS DEPOIS
@@ -696,6 +700,10 @@ int main(int argc, char* argv[])
             crash_velocity_y = 0.0f;
             speed = 0.0f;
             cortex_timer = 0.0f;
+
+            //ma_engine_play_sound(&sound_engine, "../../data/sound/once_upon_a_tire_sound.mp3", NULL);
+            ma_sound_seek_to_pcm_frame(&race_music, 0);
+            ma_sound_start(&race_music);
         }
         last_r_state = current_r_state;
 
@@ -870,11 +878,13 @@ int main(int argc, char* argv[])
                                 if (!has_winner) {
                                     has_winner = true;
                                     winner_id = static_cast<int>(i);
+                                    //ma_engine_stop(&sound_engine);
+                                    ma_sound_stop(&race_music);
                                 }
                                 if (carro == &crash) {
-                                    printf("🎊 Player venceu!\n");
+                                    printf("Player venceu!\n");
                                 } else {
-                                    printf("🎊 Cortex venceu!\n");
+                                    printf("Cortex venceu!\n");
                                 }
                             }
 
@@ -1145,6 +1155,8 @@ int main(int argc, char* argv[])
     ma_engine_uninit(&sound_engine);
 
     // Fim do programa
+    ma_sound_uninit(&race_music);
+    ma_engine_uninit(&sound_engine);
     return 0;
 }
 
