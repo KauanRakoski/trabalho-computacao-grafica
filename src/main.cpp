@@ -486,9 +486,9 @@ int main(int argc, char* argv[])
     // We'll sample positions along the polyline formed by checkpoints,
     // evenly spaced by distance. Each crate is snapped vertically so its
     // bottom rests on the track surface (floorY + halfHeight).
-    const int numCrates = 19; // choose between 7 and 12 (can be adjusted)
+    const int numCrates = 9; // choose between 7 and 12 (can be adjusted)
     const float crateScale = 0.3f;
-    const float crateHalfHeight = 0.15f; // empirical half-height in world units (matches previous AABB use)
+    const float crateHalfHeight = 0.19f; // empirical half-height in world units (matches previous AABB use)
 
     std::vector<Entity> boxes;
     boxes.reserve(numCrates);
@@ -529,9 +529,9 @@ int main(int argc, char* argv[])
         glm::vec3 queryPos = glm::vec3(pos.x, 0.0f, pos.z);
         if (trackMap.GetFloorHeight(queryPos, floorY)) {
             pos.y = floorY + crateHalfHeight; // set center so bottom rests on surface
-        } else {
+        } /*else {
             pos.y += crateHalfHeight; // fallback lift
-        }
+        }*/
 
         boxes.emplace_back("the_box", BOX);
         boxes.back().setPosition(pos.x, pos.y, pos.z);
@@ -568,7 +568,7 @@ int main(int argc, char* argv[])
     // ============================
     //  VARIÁVEIS DE DESENVOLVIMENTO
     // ============================
-    bool debug = true;
+    bool debug = false;
 
     // ============================
     //  VARIÁVEIS DE CONTROLE (GENERIC USB)
