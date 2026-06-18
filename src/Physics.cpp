@@ -4,6 +4,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <cstdlib>
 #include <vector>
+#include <matrices.h>
 
 static GLuint particleVAO = 0;
 static GLuint particleShaderProgram = 0;
@@ -130,7 +131,7 @@ void drawParticles(const std::vector<Particle> &particles, glm::mat4 view, glm::
     for (size_t i = 0; i < particles.size(); i++) {
         if (particles[i].time_to_live > 0.0f) {
             glm::mat4 model = glm::mat4(1.0f);
-            model = glm::translate(model, particles[i].position);
+            model = model * Matrix_Translate(particles[i].position.x, particles[i].position.y, particles[i].position.z);
             
             // Billboarding: make the particle face the camera
             // Expanding smoke effect: scale starts small and grows as it fades

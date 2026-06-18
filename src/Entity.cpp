@@ -75,7 +75,7 @@ glm::vec3 Entity::getForwardVector() {
     float total_angle_y = local_rotation.y + base_facing_y;
     float dir_x = -std::sin(total_angle_y);
     float dir_z = -std::cos(total_angle_y);
-    return glm::normalize(glm::vec3(dir_x, 0.0f, dir_z));
+    return (glm::vec3(dir_x, 0.0f, dir_z)) / norm(glm::vec4(dir_x, 0.0f, dir_z, 0.0f));
 }
 
 glm::mat4 Entity::getModelMatrix() {

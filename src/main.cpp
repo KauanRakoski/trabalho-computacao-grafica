@@ -146,7 +146,7 @@ glm::vec3 EvaluateCubicBezier(const glm::vec3& p0, const glm::vec3& p1, const gl
 bool GetHeightOnInclinedPlane(Entity& plane, const glm::vec3& worldPos, float& outHeight)
 {
     glm::mat4 model = plane.getModelMatrix();
-    glm::mat4 invModel = glm::inverse(model);
+    glm::mat4 invModel = glm::inverse(model); //pode?
     glm::vec4 localPos = invModel * glm::vec4(worldPos, 1.0f);
 
     if (localPos.x >= -1.0f && localPos.x <= 1.0f &&
@@ -481,7 +481,7 @@ int main(int argc, char* argv[])
     std::vector<Particle> cortexSmoke(500);
     
     // ============================
-    //  SPAWN QUESTION-CRATES ALONG TRACK PATH (7-12 instances)
+    //  SPAWN CRATES ALONG TRACK PATH (7-12 instances)
     // ============================
     // We'll sample positions along the polyline formed by checkpoints,
     // evenly spaced by distance. Each crate is snapped vertically so its
@@ -1026,7 +1026,7 @@ int main(int argc, char* argv[])
         glUniformMatrix4fv(g_view_uniform       , 1 , GL_FALSE , glm::value_ptr(view));
         glUniformMatrix4fv(g_projection_uniform , 1 , GL_FALSE , glm::value_ptr(projection));
 
-        // Desenhamos a pista, o crash e os crates de pergunta
+        // Desenhamos a pista, o crash e os crates
         trackMap.Draw();
         cortex.draw();
         crash.draw();
