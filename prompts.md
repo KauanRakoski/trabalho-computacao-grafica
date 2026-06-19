@@ -1,3 +1,11 @@
+"Can you add a second plane 45 degrees inclined right next to the original one?"
+
+"Poderia modularizar a lógica de colisão já existente que utiliza de AABB criando um arquivo collisions.cpp para armazenar todos os testes de colisão?"
+
+"Poderia adicionar o objeto box.obj com a textura box.jpg a cena atual?"
+
+"Poderia realizar uma mudança no código para ao apertar a tecla 1 mudar para uma câmera em primeira pessoa?"
+
 Ok, gemini. We have a serious problem: the kart does not collide with walls. The collisions with the ground are ocurring fine, but with walls there is no collision whatsoever. Try to fix this error, by making the collisions with both ground and walls work. Also, make it log the coordinates of whatever wall player is currently colliding - to test later if there are any ghost walls. Compile the code and make sure it runs before answering. If it does not work, fix until it does. 
 
 Compilation and running commands: 

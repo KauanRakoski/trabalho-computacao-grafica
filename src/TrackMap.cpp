@@ -470,7 +470,15 @@ bool TrackMap::ResolveWallCollision(const glm::vec3& oldPos, glm::vec3& newPos, 
             glm::vec3(22.771f, 0.994f, -24.034f),
             glm::vec3(12.046f, -2.444f, 12.343f),
             glm::vec3(23.717f, 0.791f, -27.504f),
-            glm::vec3(13.958f, -2.465f, 14.414f)
+            glm::vec3(13.958f, -2.465f, 14.414f),
+            glm::vec3(4.317f, -1.748f, 26.053f),
+            glm::vec3(8.365f, -2.312f, 19.683f),
+            glm::vec3(4.595f, -1.996f, 21.806f),
+            glm::vec3(1.886f, -1.814f, 22.488f),
+            glm::vec3(-0.727f, -4.605f, -47.091f),
+            glm::vec3(-5.455f, -2.168f, -20.519f),
+            glm::vec3(24.583, -0.190f, -50.061f),
+            glm::vec3(16.212f, -2.465f, 10.825f)
         };
         
         bool is_ghost = false;

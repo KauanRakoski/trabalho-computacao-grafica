@@ -712,7 +712,7 @@ int main(int argc, char* argv[])
             steer_input = 0.0f;
         }
 
-        if (start_timer <= 0.0f) {
+        if (start_timer <= 0.0f && !has_winner) {
             race_timer += g_DeltaTime;
         }
         
