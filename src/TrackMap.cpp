@@ -428,7 +428,67 @@ bool TrackMap::ResolveWallCollision(const glm::vec3& oldPos, glm::vec3& newPos, 
             }
         }
 
+        // --- GHOST WALL IGNORE LIST ---
+        // Se a colisão ocorrer muito perto de uma dessas coordenadas problemáticas, ignora.
+        std::vector<glm::vec3> ghost_walls = {
+            glm::vec3(-8.525f, -3.626f, -23.450f),
+            glm::vec3(-0.018f, -5.165f, -39.473f),
+            glm::vec3(-0.503f, -1.344f,  8.500f),
+            glm::vec3( 0.040f, -1.344f,  8.500f),
+            glm::vec3(-1.050f, -1.251f,  8.630f),
+            glm::vec3(-0.238f, -5.286f, -35.721f),
+            glm::vec3( 0.305f, -4.478f, -41.622f), // Terceira parede adicionada dinamicamente
+            glm::vec3(0.235f, -4.399f, -52.593f),
+            glm::vec3(2.102f, -4.169f, -53.795f),
+            glm::vec3(4.277f, -3.860f, -52.548f),
+            glm::vec3(3.309f, -3.567f, -49.845f),
+            glm::vec3(1.117f, -3.282f, -49.778f),
+            glm::vec3(0.304f, -2.981f, -52.020f),
+            glm::vec3(2.086f, -2.645f, -53.782f),
+            glm::vec3(4.176f, -2.609f, -52.664f),
+            glm::vec3(5.423f, -2.629f, -51.828f),
+            glm::vec3(20.869f, -0.710f, -51.095f),
+            glm::vec3(23.060f, 0.243f, -46.994f),
+            glm::vec3(22.102f, 0.674f, -42.455f),
+            glm::vec3(21.962f, 0.608f, -30.573f),
+            glm::vec3(21.304f, 1.033f, -23.240f),
+            glm::vec3(21.866f, 1.046f, -18.443f),
+            glm::vec3(19.790f, -1.737f, 3.582f),
+            glm::vec3(17.980f, -1.766f, 6.277f),
+            glm::vec3(15.686f, -2.465f, 8.526f),
+            glm::vec3(15.686f, -2.465f, 8.527f),
+            glm::vec3(23.189f, 0.241f, -1.046f),
+            glm::vec3(12.215f, -2.441f, 13.965f),
+            glm::vec3(14.609f, -2.443f, 10.517f),
+            glm::vec3(10.022f, -2.466f, 16.140f),
+            glm::vec3(7.247f, -2.365f, 18.683f),
+            glm::vec3(22.259f, 1.053f, -22.083f),
+            glm::vec3(-0.210f, -1.466f, 15.255f),
+            glm::vec3(-6.151f, -3.214f, -22.743f),
+            glm::vec3(18.376f, -2.056f, 4.751f),
+            glm::vec3(0.847f, 1.246f, -0.473f),
+            glm::vec3(22.771f, 0.994f, -24.034f),
+            glm::vec3(12.046f, -2.444f, 12.343f),
+            glm::vec3(23.717f, 0.791f, -27.504f),
+            glm::vec3(13.958f, -2.465f, 14.414f)
+        };
+        
+        bool is_ghost = false;
+        for (const auto& gw : ghost_walls) {
+            // Checa a distância no eixo XZ (raio de 1.5 metros) e eixo Y (1 metro)
+            glm::vec2 diffXZ(newPos.x - gw.x, newPos.z - gw.z);
+            if (glm::length(diffXZ) < 1.5f && std::fabs(newPos.y - gw.y) < 1.0f) {
+                is_ghost = true;
+                break;
+            }
+        }
+        
+        if (is_ghost) {
+            continue; // Pula essa parede fantasma
+        }
+
         // Prevent moving into steep geometry
+        printf("Wall collision at coords: glm::vec3(%.3ff, %.3ff, %.3ff)\n", newPos.x, newPos.y, newPos.z);
         newPos.x = oldPos.x;
         newPos.z = oldPos.z;
         return true;

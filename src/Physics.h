@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <vector>
 
-#define NUM_PARTICLE_ELEMENTS 500;
+#define NUM_PARTICLE_ELEMENTS 200;
 #define PARTICLE_TIME_TO_LIVE = 0.5f;
 
 struct AABB {

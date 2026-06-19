@@ -425,7 +425,7 @@ int main(int argc, char* argv[])
     #define CORTEX_MUGSHOT 10
     
     TrackMap trackMap("../../data/map/Once Upon A Tire.obj", "../../data/map/", glm::vec3(0.0f, -1.0f, 0.0f), 0.05f);
-    trackMap.SetWalkableSlopeDot(0.00f); // Configura o parâmetro de inclinação máxima para superfícies transitáveis (se > 0 colide no meio da pista)
+    trackMap.SetWalkableSlopeDot(0.50f); // Configura o parâmetro de inclinação máxima para superfícies transitáveis
     
     Entity crash(std::vector<std::string>{"mesh_1", "mesh_1.001"}, std::vector<int>{CRASH, TRIKEE});    
     crash.setPosition(-0.159368f, -1.555802f, 10.947786f);
@@ -477,8 +477,8 @@ int main(int argc, char* argv[])
     // ============================
     //  CODE FOR CREATING EXHAUST SMOKE
     // ============================
-    std::vector<Particle> particles(500);
-    std::vector<Particle> cortexSmoke(500);
+    std::vector<Particle> particles(200);
+    std::vector<Particle> cortexSmoke(200);
     
     // ============================
     //  SPAWN CRATES ALONG TRACK PATH (7-12 instances)
@@ -819,7 +819,7 @@ int main(int argc, char* argv[])
                 glm::vec3 cortexForward = cortex.getForwardVector();
                 float cortexDist = glm::distance(cortexPrevPos, cortex.getPosition());
                 int numCortexParticles = std::max(1, (int)(cortexDist / 0.015f));
-                glm::vec3 cortexBasePos = cortexPrevPos + glm::vec3(0, 0.02f, 0.0f) - cortexForward * 0.35f;
+                glm::vec3 cortexBasePos = cortex.getPosition() + glm::vec3(0, 0.02f, 0.0f);
                 
                 for(int i = 0; i < numCortexParticles; i++) {
                     spawnParticle(cortexBasePos, cortexSmoke, cortexForward, false);
