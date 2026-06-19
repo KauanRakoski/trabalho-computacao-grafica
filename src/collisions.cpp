@@ -77,6 +77,7 @@ void DrawDebugAABB(AABB bbox)
     glBindVertexArray(0);
 }
 
+// Código gerado por IA - apagar
 AABB TransformAABB(glm::vec3 local_min, glm::vec3 local_max, glm::mat4 modelMatrix) {
     glm::vec4 corners[8] = {
         glm::vec4(local_min.x, local_min.y, local_min.z, 1.0f),
