@@ -602,7 +602,6 @@ int main(int argc, char* argv[])
     float cortex_timer = 0.0f;
     float start_timer = 3.0f;
     float race_timer = 0.0f;
-    float end_timer = 0.0f;
 
     struct RacerRank {
         int id;
@@ -878,7 +877,6 @@ int main(int argc, char* argv[])
                                 }
                                 if (!has_winner) {
                                     has_winner = true;
-                                    end_timer = (float)glfwGetTime();
                                     winner_id = static_cast<int>(i);
                                     //ma_engine_stop(&sound_engine);
                                     ma_sound_stop(&race_music);
@@ -1125,10 +1123,7 @@ int main(int argc, char* argv[])
 
         // Mostra os quadros por segundo da tela (FPS) depois de desenhar tudo
         TextRendering_ShowFramesPerSecond(window);
-        if (has_winner) {
-            race_timer = end_timer;
-        } 
-            TextRendering_ShowRaceTimer(window, race_timer);
+        TextRendering_ShowRaceTimer(window, race_timer);
 
         if (has_winner) {
             std::string end_text = (winner_id == 0) ? "You win" : "You lose";
