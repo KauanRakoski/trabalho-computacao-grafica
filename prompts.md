@@ -35,3 +35,8 @@ cd bin/debug
 18. Now he is going through walls and getting stuck at the ground. Also, climbing objects that he should not collide. Change everything if needed, but fix this behavior
 
 19. The original was better. Go back to that version and build up from there...
+
+
+Lost prompt (reconstruction)
+
+20. Gemini, I want to build a particle system for creating smoke in the player and cortex cars. I already created a basic particle spawn system, but I need to know how to use OpenGL to actively draw the smoke. Implement the necessary tools for drawing (physics.cpp)
