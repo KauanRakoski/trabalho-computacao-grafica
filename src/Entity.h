@@ -22,6 +22,7 @@ protected:
     float base_facing_y;
 
 public:
+    bool active = true;
     float velocity_y = 0.0f;
     glm::vec3 knockback = glm::vec3(0.0f);
     

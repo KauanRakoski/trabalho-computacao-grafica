@@ -1031,7 +1031,14 @@ int main(int argc, char* argv[])
         cortex.draw();
         crash.draw();
         for (auto& crate : boxes) {
-            crate.draw();
+            if (crate.active)
+                crate.draw();
+
+            AABB crateAABB = crate.getAABB(0.4f);
+
+            if (CheckCollisionAABB(crashBox,crateAABB)){
+                crate.active = false;
+            }
         }
 
         updateParticles(particles, g_DeltaTime);
