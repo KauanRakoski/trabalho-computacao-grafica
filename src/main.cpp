@@ -600,7 +600,7 @@ int main(int argc, char* argv[])
         pathIn.close();
     }
     float cortex_timer = 0.0f;
-    float start_timer = 3.0f;
+    float start_timer = 11.0f;
     float race_timer = 0.0f;
 
     struct RacerRank {
@@ -956,7 +956,7 @@ int main(int argc, char* argv[])
         glm::mat4 view;
         if (start_timer > 0.0f)
         {
-            const float intro_duration = 10.0f;
+            const float intro_duration = 11.0f;
             float t = 1.0f - glm::clamp(start_timer / intro_duration, 0.0f, 1.0f);
 
             glm::vec3 p0(-1.0f, -0.5f, 10.0f);
