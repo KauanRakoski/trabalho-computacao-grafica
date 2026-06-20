@@ -143,23 +143,6 @@ glm::vec3 EvaluateCubicBezier(const glm::vec3& p0, const glm::vec3& p1, const gl
          + t3 * p3;
 }
 
-bool GetHeightOnInclinedPlane(Entity& plane, const glm::vec3& worldPos, float& outHeight)
-{
-    glm::mat4 model = plane.getModelMatrix();
-    glm::mat4 invModel = glm::inverse(model); //pode?
-    glm::vec4 localPos = invModel * glm::vec4(worldPos, 1.0f);
-
-    if (localPos.x >= -1.0f && localPos.x <= 1.0f &&
-        localPos.z >= -1.0f && localPos.z <= 1.0f)
-    {
-        glm::vec4 worldSurface = model * glm::vec4(localPos.x, 0.0f, localPos.z, 1.0f);
-        outHeight = worldSurface.y;
-        return true;
-    }
-
-    return false;
-}
-
 // Declaração de funções utilizadas para pilha de matrizes de modelagem.
 void PushMatrix(glm::mat4 M);
 void PopMatrix(glm::mat4& M);
@@ -488,7 +471,7 @@ int main(int argc, char* argv[])
     // bottom rests on the track surface (floorY + halfHeight).
     const int numCrates = 9; // choose between 7 and 12 (can be adjusted)
     const float crateScale = 0.3f;
-    const float crateHalfHeight = 0.19f; // empirical half-height in world units (matches previous AABB use)
+    const float crateHalfHeight = 0.15f; // empirical half-height in world units (matches previous AABB use)
 
     std::vector<Entity> boxes;
     boxes.reserve(numCrates);
@@ -529,9 +512,7 @@ int main(int argc, char* argv[])
         glm::vec3 queryPos = glm::vec3(pos.x, 0.0f, pos.z);
         if (trackMap.GetFloorHeight(queryPos, floorY)) {
             pos.y = floorY + crateHalfHeight; // set center so bottom rests on surface
-        } /*else {
-            pos.y += crateHalfHeight; // fallback lift
-        }*/
+        }
 
         boxes.emplace_back("the_box", BOX);
         boxes.back().setPosition(pos.x, pos.y, pos.z);
@@ -552,8 +533,6 @@ int main(int argc, char* argv[])
 
     ma_engine sound_engine;
     ma_engine_init(NULL, &sound_engine);
-
-    //ma_engine_play_sound(&sound_engine, "../../data/sound/once_upon_a_tire_sound.mp3", NULL);
 
     ma_sound race_music;
     ma_sound_init_from_file(&sound_engine, "../../data/sound/once_upon_a_tire_sound.mp3", 0, NULL, NULL, &race_music);
@@ -694,14 +673,17 @@ int main(int argc, char* argv[])
             cortex.finish_time = 0.0f;
 
             race_timer = 0.0f;
-            start_timer = 3.0f;
+            start_timer = 11.0f;
             has_winner = false;
             winner_id = -1;
             crash_velocity_y = 0.0f;
             speed = 0.0f;
             cortex_timer = 0.0f;
 
-            //ma_engine_play_sound(&sound_engine, "../../data/sound/once_upon_a_tire_sound.mp3", NULL);
+            for(auto &crate : boxes) {
+                crate.active = true;
+            }
+
             ma_sound_seek_to_pcm_frame(&race_music, 0);
             ma_sound_start(&race_music);
         }
@@ -1031,16 +1013,21 @@ int main(int argc, char* argv[])
         cortex.draw();
         crash.draw();
         for (auto& crate : boxes) {
-            if (crate.active)
+            if (crate.active) {
                 crate.draw();
 
-            AABB crateAABB = crate.getAABB(0.4f);
+                AABB crateAABB = TransformAABB(
+            g_VirtualScene["the_box"].bbox_min,
+            g_VirtualScene["the_box"].bbox_max,
+            crate.getModelMatrix()
+        );
 
-            if (CheckCollisionAABB(crashBox,crateAABB)){
-                crate.active = false;
+                if (CheckCollisionAABB(crashBox,crateAABB)){
+                    crate.active = false;
+                }
             }
         }
-
+    
         updateParticles(particles, g_DeltaTime);
         updateParticles(cortexSmoke, g_DeltaTime);
 
@@ -1159,7 +1146,6 @@ int main(int argc, char* argv[])
 
     // Finalizamos o uso dos recursos do sistema operacional
     glfwTerminate();
-    ma_engine_uninit(&sound_engine);
 
     // Fim do programa
     ma_sound_uninit(&race_music);
